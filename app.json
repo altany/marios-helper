@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.altany.marioshelper"
+      "package": "com.altany.marioshelper",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
