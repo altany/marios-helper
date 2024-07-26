@@ -10,7 +10,11 @@
     "preview": {
       "distribution": "internal"
     },
-    "production": {}
+    "production": {
+      "env": {
+        "GOOGLE_SERVICES_JSON": "@env:GOOGLE_SERVICES_JSON"
+      }
+    }
   },
   "submit": {
     "production": {}
