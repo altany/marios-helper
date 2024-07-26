@@ -83,7 +83,7 @@ export const test = async () => {
   await Notifications.scheduleNotificationAsync({
     content: {
       ...notificationCommonContent,
-      categoryIdentifier: 'exocin-reminder-short',
+      categoryIdentifier: 'exocin-reminder-full',
       body: `Σταγόνες Exocin - 1 σταγόνα στο αριστερό`,
       data: {
         text: 'Σταγόνες Exocin - 1 σταγόνα στο αριστερό',
@@ -99,7 +99,7 @@ export const test = async () => {
 export async function scheduleMedicationReminders() {
   for (const time of schedule) {
     const { hour } = time
-    const categoryIdentifier = hour === 14 || hour === 21 ? 'exocin-reminder-short' : 'exocin-reminder-full'
+    const categoryIdentifier = hour === 14 || hour === 18 ? 'exocin-reminder-short' : 'exocin-reminder-full'
     await Notifications.scheduleNotificationAsync({
       content: {
         ...notificationCommonContent,
@@ -122,22 +122,23 @@ export async function scheduleMedicationReminders() {
 
 // Handle the notification response
 const handleAction = async response => {
-  console.log('in handler', response)
+  console.log('Action', response)
   const { content, trigger } = response.notification.request
+  const { data: { medication } } = content
+  const { hour } = trigger
+
   const actionIdentifier = response.actionIdentifier;
 
   if (actionIdentifier === 'SNOOZE') {
     const newTrigger = { seconds: 10 * 60 * 1000 } // 10 minutes
-    console.log('snoozing')
-    Notifications.scheduleNotificationAsync({
+    console.log(`Snoozing ${medication} for ${hour}:00`)
+    await Notifications.scheduleNotificationAsync({
       content,
       trigger: newTrigger,
-    });
+    })
   } else if (actionIdentifier === 'NEXT') {
-    // Handle the task completion
-    const { data: { medication } } = content
-    const { hour } = trigger
     console.log(`Scheduling the medication after ${medication} for ${hour}:00`);
+    console.log(`Preping a notification for the medication after ${medication} for ${hour}:00`)
 
     const hylogelData = {
       categoryIdentifier: 'hylogel-reminder',
@@ -160,7 +161,7 @@ const handleAction = async response => {
 
     switch (medication) {
       case 'exocin':
-        if (hour === 14 || hour === 21) {
+        if (hour === 14 || hour === 18) {
           notificationData = lacrimmuneData;
         } else {
           notificationData = hylogelData;
@@ -171,7 +172,9 @@ const handleAction = async response => {
         break;
     }
 
-    Notifications.scheduleNotificationAsync({
+    console.log(`Next notification for ${JSON.stringify(notificationData)}`)
+
+    await Notifications.scheduleNotificationAsync({
       content: {
         ...notificationCommonContent,
         ...notificationData
@@ -183,7 +186,7 @@ const handleAction = async response => {
   }
   else if (actionIdentifier === 'COMPLETE') {
     // Handle the task completion
-    console.log('Task marked as completed');
+    console.log(`${medication} was given`);
   }
 
   Notifications.dismissNotificationAsync(response.notification.request.identifier);
