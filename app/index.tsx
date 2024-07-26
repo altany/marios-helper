@@ -1,9 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Text, View, Button } from 'react-native';
-import { usePushNotifications, sendPushNotification} from './services/notifications';
+import * as Notifications from 'expo-notifications';
+import { usePushNotifications, scheduleMedicationReminders, test} from './services/notifications';
 export default function App() {
-  const {notification, expoPushToken} = usePushNotifications();
-  
+  const {notification} = usePushNotifications();
+
+  useEffect(() => {
+      scheduleMedicationReminders();
+  }, []);
+
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'space-around' }}>
       <View style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -11,12 +16,12 @@ export default function App() {
         <Text>Body: {notification && notification.request.content.body}</Text>
         <Text>Data: {notification && JSON.stringify(notification.request.content.data)}</Text>
       </View>
-      <Button
+      {/* <Button
         title="Press to Send Notification"
         onPress={async () => {
-          await sendPushNotification(expoPushToken);
+          await test();
         }}
-      />
+      /> */}
     </View>
   );
 }
