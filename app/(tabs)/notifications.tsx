@@ -30,7 +30,7 @@ export default function Notification() {
         }).map((notification, index) => {
           return <ThemedText key={index}>
             <Ionicons size={10} name="medical" 
-           />{JSON.stringify(notification.content.body)}</ThemedText>
+           />{notification.content.data.hour} {JSON.stringify(notification.content.body)}</ThemedText>
         })}
       </ThemedView>
       <Button
