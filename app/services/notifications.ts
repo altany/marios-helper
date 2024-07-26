@@ -121,7 +121,7 @@ export async function scheduleMedicationReminders() {
 
 
 // Handle the notification response
-const handleAction = async response => {
+const handleAction = async (response: Notifications.NotificationResponse) => {
   console.log('Action', response)
   const { content, trigger } = response.notification.request
   const { data: { medication } } = content
@@ -191,6 +191,13 @@ const handleAction = async response => {
 
   Notifications.dismissNotificationAsync(response.notification.request.identifier);
 };
+
+export const getScheduledNotifications = async () => {
+  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  console.log(`${scheduledNotifications.length} scheduled notifications`, scheduledNotifications)
+  return scheduledNotifications;
+}
+
 
 const handleRegistrationError = (errorMessage: string) => {
   alert(errorMessage);

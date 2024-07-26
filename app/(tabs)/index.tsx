@@ -13,7 +13,7 @@ export default function App() {
 
   return (
     <ThemedView style={styles.wrapper}>
-      <ThemedText>Ως τέλος Αυγούστου</ThemedText>
+      <ThemedText>Ως τέλος Αυγούστου:</ThemedText>
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Φάρμακο 1: Exocin κολήριο</ThemedText>
         <ThemedText>1 σταγόνα x  4 φορές την ημέρα</ThemedText>
@@ -44,6 +44,7 @@ const styles = StyleSheet.create({
   stepContainer: {
     gap: 8,
     marginBottom: 8,
+    marginTop: 8,
   },
   reactLogo: {
     height: 178,
