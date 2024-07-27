@@ -90,25 +90,32 @@ export const test = async () => {
 }
 
 export async function scheduleMedicationReminders() {
-  for (const time of schedule) {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        ...notificationCommonContent,
-        categoryIdentifier: 'exocin-reminder',
-        body: `Σταγόνες Exocin - 1 σταγόνα στο αριστερό`,
-        data: {
-          text: 'Σταγόνες Exocin - 1 σταγόνα στο αριστερό',
-          medication: 'exocin',
-          hour: time.hour
+  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  const hours = scheduledNotifications.map(notification => notification.trigger.hour);
+  const hasAllHours = [9, 14, 18, 21].every(hour => hours.includes(hour));
+  console.log('Scheduled notifications already set?', hasAllHours);
+  if (!hasAllHours) {
+    for (const time of schedule) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          ...notificationCommonContent,
+          categoryIdentifier: 'exocin-reminder',
+          body: `Σταγόνες Exocin - 1 σταγόνα στο αριστερό`,
+          data: {
+            text: 'Σταγόνες Exocin - 1 σταγόνα στο αριστερό',
+            medication: 'exocin',
+            hour: time.hour
+          },
         },
-      },
-      trigger: {
-        hour: time.hour,
-        minute: 0,
-        repeats: true,
-      },
-    })
+        trigger: {
+          hour: time.hour,
+          minute: 0,
+          repeats: true,
+        },
+      })
+    }
   }
+
 }
 
 // Handle the notification response
@@ -199,6 +206,11 @@ export const getScheduledNotifications = async () => {
   return scheduledNotifications;
 }
 
+export const resetNotifications = async () => {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  scheduleMedicationReminders();
+  console.log('Notifications reset');
+}
 
 const handleRegistrationError = (errorMessage: string) => {
   alert(errorMessage);
