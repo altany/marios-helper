@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -122,84 +122,81 @@ export async function scheduleMedicationReminders() {
 
 // Handle the notification response
 const handleAction = async (response: Notifications.NotificationResponse) => {
-  console.log('Action', response)
-  const { content: { title, body, data, categoryIdentifier }, trigger } = response.notification.request as { content: { title: string, body: string, data: any, categoryIdentifier: string }, trigger: any }
-  const { medication } = data
+  try {
+    console.log('Action', response)
+    const { content: { title, body, data, categoryIdentifier }, trigger } = response.notification.request as { content: { title: string, body: string, data: any, categoryIdentifier: string }, trigger: any }
+    const { medication } = data
 
-  // Extract the hour if the trigger is time - based
-  const hour = (trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined) ?
-    trigger.dateComponents.hour : data.hour
+    // Extract the hour if the trigger is time - based
+    const hour = (trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined) ?
+      trigger.dateComponents.hour : data.hour
 
-  const actionIdentifier = response.actionIdentifier;
+    const actionIdentifier = response.actionIdentifier;
 
-  if (actionIdentifier === 'SNOOZE') {
-    const newTrigger = { seconds: 10 * 60 * 1000 } // 10 minutes
-    console.log(`Snoozing ${medication} for ${hour}:00`)
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        body,
-        data,
-        categoryIdentifier,
-        ...notificationCommonContent,
-      },
-      trigger: newTrigger,
-    })
-  } else if (actionIdentifier === 'NEXT') {
-    console.log(`Preping a notification for the medication after ${medication} for ${hour}:00`)
+    if (actionIdentifier === 'SNOOZE') {
+      const newTrigger = { seconds: 10 * 60 * 1000 } // 10 minutes
+      console.log(`Snoozing ${medication} for ${hour}:00`)
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          body,
+          data,
+          categoryIdentifier,
+          ...notificationCommonContent,
+        },
+        trigger: newTrigger,
+      })
+    } else if (actionIdentifier === 'NEXT') {
+      console.log(`Preping a notification for the medication after ${medication} for ${hour}:00`)
 
-    const hylogelData = {
-      categoryIdentifier: hour === 9 || hour === 21 ? 'hylogel-reminder' : 'last-reminder',
-      body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-      data: {
-        text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-        medication: 'hylogel'
+      const hylogelData = {
+        categoryIdentifier: hour === 9 || hour === 21 ? 'hylogel-reminder' : 'last-reminder',
+        body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
+        data: {
+          text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
+          medication: 'hylogel'
+        }
       }
-    }
 
-    const lacrimmuneData = {
-      categoryIdentifier: 'last-reminder',
-      body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-      data: {
-        text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-        medication: 'lacrimmune'
+      const lacrimmuneData = {
+        categoryIdentifier: 'last-reminder',
+        body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+        data: {
+          text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+          medication: 'lacrimmune'
+        }
       }
+      let notificationData;
+
+      switch (medication) {
+        case 'exocin':
+          notificationData = hylogelData;
+          break;
+        case 'hylogel':
+          notificationData = lacrimmuneData;
+          break;
+      }
+
+      console.log(`Next notification for ${JSON.stringify(notificationData)}`)
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          ...notificationCommonContent,
+          ...notificationData
+        },
+        trigger: {
+          seconds: 20 * 60, // 20 minutes
+        },
+      })
+
     }
-    let notificationData;
-
-    switch (medication) {
-      case 'exocin':
-        notificationData = hylogelData;
-        break;
-      case 'hylogel':
-        notificationData = lacrimmuneData;
-        break;
+    else if (actionIdentifier === 'COMPLETE') {
+      // Handle the task completion
+      console.log(`${medication} was given`);
     }
-
-    console.log(`Next notification for ${JSON.stringify(notificationData)}`)
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        ...notificationCommonContent,
-        ...notificationData
-      },
-      trigger: {
-        seconds: 20 * 60, // 20 minutes
-      },
-    })
+    Notifications.dismissNotificationAsync(response.notification.request.identifier);
+  } catch (error) {
+    console.log(error)
   }
-  else if (actionIdentifier === 'COMPLETE') {
-    // Handle the task completion
-    console.log(`${medication} was given`);
-  }
-  else if (actionIdentifier === 'expo.modules.notifications.actions.DEFAULT') {
-    console.log('show details, title:', title, 'body', body);
-
-    router.push({
-      pathname: '/details',
-      params: { title, body },
-    })
-  }
-  Notifications.dismissNotificationAsync(response.notification.request.identifier);
 };
 
 export const getScheduledNotifications = async () => {
@@ -224,7 +221,7 @@ const handleRegistrationError = (errorMessage: string) => {
   throw new Error(errorMessage);
 }
 
-const registerForPushNotificationsAsync = async () => {
+export const registerForPushNotificationsAsync = async () => {
   if (Platform.OS === 'android') {
     Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -256,7 +253,6 @@ const registerForPushNotificationsAsync = async () => {
           projectId,
         })
       ).data;
-      console.log('in register', pushTokenString);
       return pushTokenString;
     } catch (e: unknown) {
       handleRegistrationError(`${e}`);
@@ -266,20 +262,30 @@ const registerForPushNotificationsAsync = async () => {
   }
 }
 
-export function usePushNotifications() {
-  useEffect(() => {
-    registerForPushNotificationsAsync()
+export const usePushNotifications = () => {
+  const notificationListener = useRef<Notifications.Subscription>();
+  const responseListener = useRef<Notifications.Subscription>();
+  const [lastNotification, setLastNotification] = useState<Notifications.Notification | undefined>(
+    undefined
+  );
 
-    const notificationSubscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
-    });
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(handleAction);
+  useEffect(() => {
+    Notifications.getLastNotificationResponseAsync()
+      .then(response => {
+        setLastNotification(response.notification)
+      });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      handleAction
+    );
 
     return () => {
-      notificationSubscription.remove();
-      responseSubscription.remove();
+      notificationListener.current &&
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      responseListener.current &&
+        Notifications.removeNotificationSubscription(responseListener.current);
     };
   }, []);
 
-  return;
+  return { lastNotification }
 }

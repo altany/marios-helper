@@ -1,18 +1,26 @@
 import { useEffect } from 'react';
 import {  StyleSheet } from 'react-native';
-
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-
+import { usePushNotifications } from '../services/notifications';
 import { scheduleMedicationReminders} from '../services/notifications';
 export default function App() {
+  const {lastNotification} = usePushNotifications();
 
   useEffect(() => {
     scheduleMedicationReminders();
-}, []);
+  }, []);
 
+  const {title, body} = lastNotification?.request?.content || {};
+  console.log(title,body)
   return (
     <ThemedView style={styles.wrapper}>
+      {(title || body) && (
+        <ThemedView style={styles.notification}>
+          {title && <ThemedText>{title}</ThemedText>}
+          {body && <ThemedText>{body}</ThemedText>}
+        </ThemedView>
+      )}
       <ThemedText>Ως τέλος Αυγούστου:</ThemedText>
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Φάρμακο 1: Exocin κολήριο</ThemedText>
@@ -40,6 +48,10 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 20,
     paddingBottom: 20
+  },
+  notification: {
+    borderWidth: 2,
+    borderColor: 'yellow',
   },
   stepContainer: {
     gap: 8,
