@@ -5,6 +5,16 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+
 const schedule = [
   { hour: 9, },
   { hour: 14, },
@@ -18,14 +28,6 @@ const notificationCommonContent = {
   interruptionLevel: 'timeSensitive' as 'timeSensitive',
   //sticky:true
 }
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
 
 const snooze = {
   identifier: 'SNOOZE',
@@ -210,6 +212,11 @@ export const resetNotifications = async () => {
   await Notifications.cancelAllScheduledNotificationsAsync();
   scheduleMedicationReminders();
   console.log('Notifications reset');
+}
+
+export const disableNotifications = async () => {
+  Notifications.cancelAllScheduledNotificationsAsync();
+  console.log('Notifications disabled');
 }
 
 const handleRegistrationError = (errorMessage: string) => {

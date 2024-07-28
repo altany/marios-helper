@@ -1,7 +1,7 @@
 import { StyleSheet, Button } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { getScheduledNotifications, resetNotifications, test } from '../services/notifications';
+import { getScheduledNotifications, resetNotifications, disableNotifications, test } from '../services/notifications';
 import { useEffect, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
@@ -49,7 +49,13 @@ export default function Notification() {
         }}
       />
       <Button
-        title="Press to Trigger Notification round"
+        title="Disable notifications"
+        onPress={async () => {
+          await disableNotifications();
+        }}
+      />
+      <Button
+        title="Trigger Notification round"
         onPress={async () => {
           await test();
         }}
