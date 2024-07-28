@@ -3,14 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
-
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge: true,
   }),
 });
 
@@ -26,7 +24,7 @@ const notificationCommonContent = {
   title: 'Υπενθύμιση - Φάρμακο Μάριο',
   sound: 'default',
   interruptionLevel: 'timeSensitive' as 'timeSensitive',
-  //sticky:true
+  sticky: true
 }
 
 const snooze = {
@@ -121,10 +119,10 @@ export async function scheduleMedicationReminders() {
 }
 
 // Handle the notification response
-const handleAction = async (response: Notifications.NotificationResponse) => {
+export const handleNotificationReponse = async (response: Notifications.NotificationResponse) => {
   try {
     console.log('Action', response)
-    const { content: { title, body, data, categoryIdentifier }, trigger } = response.notification.request as { content: { title: string, body: string, data: any, categoryIdentifier: string }, trigger: any }
+    const { content: { body, data, categoryIdentifier }, trigger } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any }
     const { medication } = data
 
     // Extract the hour if the trigger is time - based
@@ -265,18 +263,23 @@ export const registerForPushNotificationsAsync = async () => {
 export const usePushNotifications = () => {
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
-  const [lastNotification, setLastNotification] = useState<Notifications.Notification | undefined>(
+  const [lastNotificationResponse, setLastNotificationResponse] = useState<Notifications.NotificationResponse | undefined>(
     undefined
   );
+  //const lastNotif = Notifications.useLastNotificationResponse()
+  //console.log('Last notif', lastNotif)
 
   useEffect(() => {
     Notifications.getLastNotificationResponseAsync()
       .then(response => {
-        setLastNotification(response.notification)
+        if (!!response) {
+          setLastNotificationResponse(response)
+          handleNotificationReponse(response)
+        }
       });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      handleAction
+      handleNotificationReponse
     );
 
     return () => {
@@ -287,5 +290,5 @@ export const usePushNotifications = () => {
     };
   }, []);
 
-  return { lastNotification }
+  return { lastNotificationResponse }
 }

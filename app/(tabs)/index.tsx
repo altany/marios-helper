@@ -4,15 +4,22 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { usePushNotifications } from '../services/notifications';
 import { scheduleMedicationReminders} from '../services/notifications';
+//import * as Notifications from 'expo-notifications';
 export default function App() {
-  const {lastNotification} = usePushNotifications();
+  const {lastNotificationResponse} = usePushNotifications();
 
   useEffect(() => {
     scheduleMedicationReminders();
+    /* Notifications.getPresentedNotificationsAsync().then((notifications) => 
+      notifications.map(notification=>{
+        console.log('notification', notification)
+  }) )*/
+  
+
   }, []);
 
-  const {title, body} = lastNotification?.request?.content || {};
-  console.log(title,body)
+  const {title, body} = lastNotificationResponse?.notification?.request?.content || {};
+
   return (
     <ThemedView style={styles.wrapper}>
       {(title || body) && (

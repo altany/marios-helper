@@ -14,12 +14,13 @@ const  RootLayout = ()=> {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
-  
+
+  usePushNotifications()
+
   useEffect(() => {
     registerForPushNotificationsAsync()
 }, []);
 
-  usePushNotifications()
   
   useEffect(() => {
     if (loaded) {
