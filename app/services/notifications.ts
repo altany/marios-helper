@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -132,7 +133,7 @@ export const handleNotificationReponse = async (response: Notifications.Notifica
     const actionIdentifier = response.actionIdentifier;
 
     if (actionIdentifier === 'SNOOZE') {
-      const newTrigger = { seconds: 10 * 60 * 1000 } // 10 minutes
+      const newTrigger = { seconds: 10 * 60 } // 10 minutes
       console.log(`Snoozing ${medication} for ${hour}:00`)
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -260,6 +261,27 @@ export const registerForPushNotificationsAsync = async () => {
   }
 }
 
+const showWakeupAlert = async (text) => {
+  return new Promise<string>((resolve) => {
+
+    Alert.alert(
+      'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
+      text,
+      [
+        {
+          text: 'Θυμησε το μου ξανα',
+          onPress: () => resolve('SNOOZE')
+        },
+        {
+          text: 'Το έδωσα',
+          onPress: () => resolve('NEXT'),
+        },
+      ],
+      { cancelable: false }
+    );
+  })
+};
+
 export const usePushNotifications = () => {
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
@@ -270,13 +292,19 @@ export const usePushNotifications = () => {
   //console.log('Last notif', lastNotif)
 
   useEffect(() => {
-    Notifications.getLastNotificationResponseAsync()
-      .then(response => {
-        if (!!response) {
-          setLastNotificationResponse(response)
-          handleNotificationReponse(response)
-        }
-      });
+    const handleNotificationResponse = async () => {
+      const response = await Notifications.getLastNotificationResponseAsync();
+      if (response) {
+        setLastNotificationResponse(response);
+        const alertResponse = await showWakeupAlert(response.notification.request.content.body);
+        console.log('User selected:', alertResponse);
+        response.actionIdentifier = alertResponse;
+        handleNotificationReponse(response)
+      }
+    };
+
+    handleNotificationResponse();
+
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       handleNotificationReponse
