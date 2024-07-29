@@ -23,10 +23,13 @@ export default function Notification() {
       headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
       headerImage={<Ionicons size={310} name="code-slash" style={styles.headerImage} />}
     >
-      <ThemedView style={styles.stepContainer}>
+      <ThemedView>
         <ThemedText>Έχεις ζητήσεις τις εξής ειδοποιήσεις:</ThemedText>
-
-        {scheduledNotifications.map((notification, index) => {
+        <ThemedText>Καθημερινά:</ThemedText>
+        <ThemedView style={styles.notificationsList}>
+        {scheduledNotifications
+          .filter(notification=>{return notification.trigger.type==='daily'})
+          .map((notification, index) => {
           const { data, body } = notification.content;
           return (
             <ThemedText key={index}>
@@ -35,6 +38,22 @@ export default function Notification() {
             </ThemedText>
           );
         })}
+        </ThemedView>
+
+        <ThemedText>Εκρεμμούν:</ThemedText>
+        <ThemedView style={styles.notificationsList}>
+        {scheduledNotifications
+          .filter(notification=>{return notification.trigger.type==='timeInterval'})
+          .map((notification, index) => {
+          const { data, body } = notification.content;
+          return (
+            <ThemedText key={index}>
+              <Ionicons size={10} name="medical" />
+              {data.hour>0?`${data.hour}:00`:'test:'} {JSON.stringify(body)}
+            </ThemedText>
+          );
+        })}
+        </ThemedView>
       </ThemedView>
       <Button
         title="Refresh"
@@ -76,9 +95,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  notificationsList: {
+    backgroundColor: '#317181',
+    marginTop:10,
+    marginBottom:10,
+    padding:10,
   },
   reactLogo: {
     height: 178,

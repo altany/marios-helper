@@ -24,6 +24,7 @@ export default function App() {
     <ThemedView style={styles.wrapper}>
       {(title || body) && (
         <ThemedView style={styles.notification}>
+          <ThemedText>Πιο πρόσφατη ειδοποιήση:</ThemedText>
           {title && <ThemedText>{title}</ThemedText>}
           {body && <ThemedText>{body}</ThemedText>}
         </ThemedView>
@@ -57,8 +58,10 @@ const styles = StyleSheet.create({
     paddingBottom: 20
   },
   notification: {
-    borderWidth: 2,
-    borderColor: 'yellow',
+    backgroundColor: '#317181',
+    marginTop:10,
+    marginBottom:10,
+    padding:10,
   },
   stepContainer: {
     gap: 8,
