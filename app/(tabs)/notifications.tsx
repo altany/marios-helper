@@ -24,7 +24,7 @@ export default function Notification() {
       headerImage={<Ionicons size={310} name="code-slash" style={styles.headerImage} />}
     >
       <ThemedView>
-        <ThemedText>Έχεις ζητήσεις τις εξής ειδοποιήσεις:</ThemedText>
+        <ThemedText>Θα λάβεις τις εξής ειδοποιήσεις:</ThemedText>
         <ThemedText>Καθημερινά:</ThemedText>
         <ThemedView style={styles.notificationsList}>
         {scheduledNotifications
