@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
@@ -72,7 +72,58 @@ Notifications.setNotificationCategoryAsync('last-reminder', [
   completed
 ]);
 
-const showDefaultActionAlert = async (text) => {
+const initialNotificationContent = {
+  ...notificationCommonContent,
+  categoryIdentifier: 'exocin-reminder',
+  body: `Σταγόνες Exocin - 1 σταγόνα στο αριστερό`,
+  data: {
+    text: 'Σταγόνες Exocin - 1 σταγόνα στο αριστερό',
+    medication: 'exocin'
+  },
+}
+
+export const test = async () => {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      ...initialNotificationContent,
+      data: {
+        ...initialNotificationContent.data,
+        hour: 0
+      }
+    },
+    trigger: {
+      seconds: 3,
+    },
+  })
+}
+
+export async function scheduleMedicationReminders() {
+  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  const hours = scheduledNotifications.map(notification => notification.trigger.hour);
+  const hasAllHours = [9, 14, 18, 21].every(hour => hours.includes(hour));
+  console.log('Scheduled notifications already set?', hasAllHours);
+  if (!hasAllHours) {
+    for (const time of schedule) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          ...initialNotificationContent,
+          data: {
+            ...initialNotificationContent.data,
+            hour: time.hour
+          }
+        },
+        trigger: {
+          hour: time.hour,
+          minute: 0,
+          repeats: true,
+        },
+      })
+    }
+  }
+
+}
+
+const showDefaultActionAlert = async (text: string) => {
   return new Promise<string>((resolve) => {
 
     Alert.alert(
@@ -92,53 +143,6 @@ const showDefaultActionAlert = async (text) => {
     );
   })
 };
-
-export const test = async () => {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      ...notificationCommonContent,
-      categoryIdentifier: 'exocin-reminder',
-      body: `Σταγόνες Exocin - 1 σταγόνα στο αριστερό`,
-      data: {
-        hour: 0,
-        text: 'Σταγόνες Exocin - 1 σταγόνα στο αριστερό',
-        medication: 'exocin'
-      },
-    },
-    trigger: {
-      seconds: 3,
-    },
-  })
-}
-
-export async function scheduleMedicationReminders() {
-  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-  const hours = scheduledNotifications.map(notification => notification.trigger.hour);
-  const hasAllHours = [9, 14, 18, 21].every(hour => hours.includes(hour));
-  console.log('Scheduled notifications already set?', hasAllHours);
-  if (!hasAllHours) {
-    for (const time of schedule) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          ...notificationCommonContent,
-          categoryIdentifier: 'exocin-reminder',
-          body: `Σταγόνες Exocin - 1 σταγόνα στο αριστερό`,
-          data: {
-            text: 'Σταγόνες Exocin - 1 σταγόνα στο αριστερό',
-            medication: 'exocin',
-            hour: time.hour
-          },
-        },
-        trigger: {
-          hour: time.hour,
-          minute: 0,
-          repeats: true,
-        },
-      })
-    }
-  }
-
-}
 
 export const getScheduledNotifications = async () => {
   const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
@@ -202,32 +206,28 @@ export const registerForPushNotificationsAsync = async () => {
     handleRegistrationError('Must use physical device for push notifications');
   }
 }
-
 export const usePushNotifications = () => {
   const [lastNotificationResponse, setLastNotificationResponse] = useState<Notifications.NotificationResponse | undefined>(
     undefined
   );
-  //const lastNotif = Notifications.useLastNotificationResponse()
-  //console.log('Last notif', lastNotif)
 
   useEffect(() => {
-    const handleNotificationReponse = async (response: Notifications.NotificationResponse) => {
-
-      console.log('Action', response)
+    const handleNotificationResponse = async (response: Notifications.NotificationResponse) => {
+      console.log('Action', response);
       setLastNotificationResponse(response);
 
-      const { content: { body, data, categoryIdentifier }, trigger } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any }
-      const { medication } = data
+      const { content: { body, data, categoryIdentifier }, trigger } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any };
+      const { medication } = data;
 
-      // Extract the hour if the trigger is time - based
+      // Extract the hour if the trigger is time-based
       const hour = (trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined) ?
-        trigger.dateComponents.hour : data.hour
+        trigger.dateComponents.hour : data.hour;
 
       const actionIdentifier = response.actionIdentifier;
 
       if (actionIdentifier === 'SNOOZE') {
-        const newTrigger = { seconds: 10 * 60 } // 10 minutes
-        console.log(`Snoozing ${medication} for ${hour}:00`)
+        const newTrigger = { seconds: 10 * 60 }; // 10 minutes
+        console.log(`Snoozing ${medication} for ${hour}:00`);
         await Notifications.scheduleNotificationAsync({
           content: {
             body,
@@ -236,41 +236,36 @@ export const usePushNotifications = () => {
             ...notificationCommonContent,
           },
           trigger: newTrigger,
-        })
+        });
       } else if (actionIdentifier === 'NEXT') {
+        console.log(`Preparing a notification for the medication after ${medication} for ${hour}:00`);
 
-        console.log(`Preping a notification for the medication after ${medication} for ${hour}:00`)
-
-        const hylogelData = {
-          categoryIdentifier: hour === 9 || hour === 21 ? 'hylogel-reminder' : 'last-reminder',
-          body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-          data: {
-            text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-            medication: 'hylogel'
-          }
-        }
-
-        const lacrimmuneData = {
-          categoryIdentifier: 'last-reminder',
-          body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-          data: {
-            text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-            medication: 'lacrimmune'
-          }
-        }
         let notificationData;
 
         switch (medication) {
           case 'exocin':
-
-            notificationData = hylogelData;
+            notificationData = {
+              categoryIdentifier: hour === 9 || hour === 21 ? 'hylogel-reminder' : 'last-reminder',
+              body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
+              data: {
+                text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
+                medication: 'hylogel'
+              }
+            };
             break;
           case 'hylogel':
-            notificationData = lacrimmuneData;
+            notificationData = {
+              categoryIdentifier: 'last-reminder',
+              body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+              data: {
+                text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+                medication: 'lacrimmune'
+              }
+            };
             break;
         }
 
-        console.log(`Next notification for ${JSON.stringify(notificationData)}`)
+        console.log(`Next notification for ${JSON.stringify(notificationData)}`);
 
         await Notifications.scheduleNotificationAsync({
           content: {
@@ -280,10 +275,8 @@ export const usePushNotifications = () => {
           trigger: {
             seconds: 20 * 60, // 20 minutes
           },
-        })
-
-      }
-      else if (actionIdentifier === 'COMPLETE') {
+        });
+      } else if (actionIdentifier === 'COMPLETE') {
         // Handle the task completion
         console.log(`${medication} was given`);
       } else if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
@@ -291,34 +284,33 @@ export const usePushNotifications = () => {
         const alertResponse = await showDefaultActionAlert(body);
         console.log('User selected:', alertResponse);
         response.actionIdentifier = alertResponse;
-        handleNotificationReponse(response)
+        handleNotificationResponse(response);
       }
-      Notifications.dismissNotificationAsync(response.notification.request.identifier);
 
-    }
+      Notifications.dismissNotificationAsync(response.notification.request.identifier);
+    };
 
     const handleBackgroundNotificationResponse = async () => {
       const response = await Notifications.getLastNotificationResponseAsync();
       if (response) {
         setLastNotificationResponse(response);
-        const alertResponse = await showDefaultActionAlert(response.notification.request.content.body);
+        const alertResponse = await showDefaultActionAlert(response.notification.request.content.body || '');
         console.log('User selected:', alertResponse);
         response.actionIdentifier = alertResponse;
-        handleNotificationReponse(response)
+        handleNotificationResponse(response);
       }
     };
 
     handleBackgroundNotificationResponse();
 
     const responseListener = Notifications.addNotificationResponseReceivedListener(
-      handleNotificationReponse
+      handleNotificationResponse
     );
 
     return () => {
-      responseListener.remove()
-
+      responseListener.remove();
     };
   }, []);
 
-  return { lastNotificationResponse }
-}
+  return { lastNotificationResponse };
+};
