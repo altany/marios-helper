@@ -123,27 +123,6 @@ export async function scheduleMedicationReminders() {
 
 }
 
-const showDefaultActionAlert = async (text: string) => {
-  return new Promise<string>((resolve) => {
-
-    Alert.alert(
-      'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
-      text,
-      [
-        {
-          text: 'Θυμησε το μου ξανα',
-          onPress: () => resolve('SNOOZE')
-        },
-        {
-          text: 'Το έδωσα',
-          onPress: () => resolve('NEXT'),
-        },
-      ],
-      { cancelable: false }
-    );
-  })
-};
-
 export const getScheduledNotifications = async () => {
   const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
   //console.log(`${scheduledNotifications.length} scheduled notifications`, scheduledNotifications)
@@ -206,100 +185,118 @@ export const registerForPushNotificationsAsync = async () => {
     handleRegistrationError('Must use physical device for push notifications');
   }
 }
+
+const showDefaultActionAlert = async (text: string) => {
+  return new Promise<string>((resolve) => {
+    console.log('in alert')
+    Alert.alert(
+      'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
+      text,
+      [
+        {
+          text: 'Θυμησε το μου ξανα',
+          onPress: () => resolve('SNOOZE')
+        },
+        {
+          text: 'Το έδωσα',
+          onPress: () => resolve('NEXT'),
+        },
+      ],
+    );
+  })
+};
+
 export const usePushNotifications = () => {
   const [lastNotificationResponse, setLastNotificationResponse] = useState<Notifications.NotificationResponse | undefined>(
     undefined
   );
 
+  const handleNotificationResponse = async (response: Notifications.NotificationResponse) => {
+    console.log('Action', response);
+    setLastNotificationResponse(response);
+
+    const { content: { body, data, categoryIdentifier }, trigger, identifier } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any, identifier: string };
+    const { medication } = data;
+
+    // Extract the hour if the trigger is time-based
+    const hour = (trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined) ?
+      trigger.dateComponents.hour : data.hour;
+
+    const actionIdentifier = response.actionIdentifier;
+
+    if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+      console.log('should show alert now')
+      const alertResponse = await showDefaultActionAlert(body);
+      console.log('User selected:', alertResponse);
+      response.actionIdentifier = alertResponse;
+      handleNotificationResponse(response);
+    } else if (actionIdentifier === 'SNOOZE') {
+      const newTrigger = { seconds: 10 * 60 }; // 10 minutes
+      console.log(`Snoozing ${medication} for ${hour}:00`);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          body,
+          data,
+          categoryIdentifier,
+          ...notificationCommonContent,
+        },
+        trigger: newTrigger,
+      });
+    } else if (actionIdentifier === 'NEXT') {
+      console.log(`Preparing a notification for the medication after ${medication} for ${hour}:00`);
+
+      let notificationData;
+
+      switch (medication) {
+        case 'exocin':
+          notificationData = {
+            categoryIdentifier: hour === 9 || hour === 21 ? 'hylogel-reminder' : 'last-reminder',
+            body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
+            data: {
+              text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
+              medication: 'hylogel'
+            }
+          };
+          break;
+        case 'hylogel':
+          notificationData = {
+            categoryIdentifier: 'last-reminder',
+            body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+            data: {
+              text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+              medication: 'lacrimmune'
+            }
+          };
+          break;
+      }
+
+      console.log(`Next notification for ${JSON.stringify(notificationData)}`);
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          ...notificationCommonContent,
+          ...notificationData
+        },
+        trigger: {
+          seconds: 20 * 60, // 20 minutes
+        },
+      });
+    } else if (actionIdentifier === 'COMPLETE') {
+      // Handle the task completion
+      console.log(`${medication} was given`);
+    }
+
+    Notifications.dismissNotificationAsync(identifier);
+  };
+
+  const handleBackgroundNotificationResponse = async () => {
+    const response = await Notifications.getLastNotificationResponseAsync();
+    if (response) {
+      handleNotificationResponse(response)
+    }
+  };
+
   useEffect(() => {
-    const handleNotificationResponse = async (response: Notifications.NotificationResponse) => {
-      console.log('Action', response);
-      setLastNotificationResponse(response);
-
-      const { content: { body, data, categoryIdentifier }, trigger } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any };
-      const { medication } = data;
-
-      // Extract the hour if the trigger is time-based
-      const hour = (trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined) ?
-        trigger.dateComponents.hour : data.hour;
-
-      const actionIdentifier = response.actionIdentifier;
-
-      if (actionIdentifier === 'SNOOZE') {
-        const newTrigger = { seconds: 10 * 60 }; // 10 minutes
-        console.log(`Snoozing ${medication} for ${hour}:00`);
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            body,
-            data,
-            categoryIdentifier,
-            ...notificationCommonContent,
-          },
-          trigger: newTrigger,
-        });
-      } else if (actionIdentifier === 'NEXT') {
-        console.log(`Preparing a notification for the medication after ${medication} for ${hour}:00`);
-
-        let notificationData;
-
-        switch (medication) {
-          case 'exocin':
-            notificationData = {
-              categoryIdentifier: hour === 9 || hour === 21 ? 'hylogel-reminder' : 'last-reminder',
-              body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-              data: {
-                text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-                medication: 'hylogel'
-              }
-            };
-            break;
-          case 'hylogel':
-            notificationData = {
-              categoryIdentifier: 'last-reminder',
-              body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-              data: {
-                text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-                medication: 'lacrimmune'
-              }
-            };
-            break;
-        }
-
-        console.log(`Next notification for ${JSON.stringify(notificationData)}`);
-
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            ...notificationCommonContent,
-            ...notificationData
-          },
-          trigger: {
-            seconds: 20 * 60, // 20 minutes
-          },
-        });
-      } else if (actionIdentifier === 'COMPLETE') {
-        // Handle the task completion
-        console.log(`${medication} was given`);
-      } else if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
-        setLastNotificationResponse(response);
-        const alertResponse = await showDefaultActionAlert(body);
-        console.log('User selected:', alertResponse);
-        response.actionIdentifier = alertResponse;
-        handleNotificationResponse(response);
-      }
-
-      Notifications.dismissNotificationAsync(response.notification.request.identifier);
-    };
-
-    const handleBackgroundNotificationResponse = async () => {
-      const response = await Notifications.getLastNotificationResponseAsync();
-      if (response) {
-        setLastNotificationResponse(response);
-        const alertResponse = await showDefaultActionAlert(response.notification.request.content.body || '');
-        console.log('User selected:', alertResponse);
-        response.actionIdentifier = alertResponse;
-        handleNotificationResponse(response);
-      }
-    };
 
     handleBackgroundNotificationResponse();
 
