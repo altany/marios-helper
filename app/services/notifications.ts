@@ -82,22 +82,9 @@ const initialNotificationContent = {
   },
 }
 
-export const test = async () => {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      ...initialNotificationContent,
-      data: {
-        ...initialNotificationContent.data,
-        hour: 0
-      }
-    },
-    trigger: {
-      seconds: 3,
-    },
-  })
-}
 
-export async function scheduleMedicationReminders() {
+
+export const scheduleMedicationReminders = async () => {
   const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
   const hours = scheduledNotifications.map(notification => notification.trigger.hour);
   const hasAllHours = [9, 14, 18, 21].every(hour => hours.includes(hour));
@@ -123,25 +110,67 @@ export async function scheduleMedicationReminders() {
 
 }
 
-export const getScheduledNotifications = async () => {
-  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-  //console.log(`${scheduledNotifications.length} scheduled notifications`, scheduledNotifications)
-  return scheduledNotifications;
+export const useScheduledNotifications = () => {
+
+  const [scheduledNotifications, setScheduledNotifications] = useState<Notifications.NotificationRequest[]>([]);
+
+  useEffect(() => {
+    getScheduledNotifications();
+  }, []);
+
+
+  const getScheduledNotifications = async () => {
+    const notifications = await Notifications.getAllScheduledNotificationsAsync();
+    setScheduledNotifications(notifications)
+  }
+
+  const resetNotifications = async () => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await scheduleMedicationReminders();
+    console.log('Notifications reset');
+    const notifications = await Notifications.getAllScheduledNotificationsAsync();
+    console.log(notifications)
+    setScheduledNotifications(notifications)
+  }
+
+  const disableNotifications = async () => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    console.log('Notifications disabled');
+    const notifications = await Notifications.getAllScheduledNotificationsAsync();
+    setScheduledNotifications(notifications)
+  }
+
+  const test = async () => {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        ...initialNotificationContent,
+        data: {
+          ...initialNotificationContent.data,
+          hour: 0
+        }
+      },
+      trigger: {
+        seconds: 3,
+      },
+    })
+
+    console.log('Test notification triggered');
+    const notifications = await Notifications.getAllScheduledNotificationsAsync();
+    setScheduledNotifications(notifications)
+  }
+
+  return {
+    scheduledNotifications,
+    getScheduledNotifications,
+    resetNotifications,
+    disableNotifications,
+    test,
+    schedule
+  }
 }
 
 export const getLastNotifactionResponse = async () => {
   return await Notifications.getLastNotificationResponseAsync()
-}
-
-export const resetNotifications = async () => {
-  await Notifications.cancelAllScheduledNotificationsAsync();
-  scheduleMedicationReminders();
-  console.log('Notifications reset');
-}
-
-export const disableNotifications = async () => {
-  Notifications.cancelAllScheduledNotificationsAsync();
-  console.log('Notifications disabled');
 }
 
 const handleRegistrationError = (errorMessage: string) => {
