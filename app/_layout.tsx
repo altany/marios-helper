@@ -5,7 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { registerForPushNotificationsAsync, usePushNotifications } from './services/notifications';
+import { usePushNotifications, registerForPushNotificationsAsync } from './services/notifications';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
@@ -15,13 +15,13 @@ const  RootLayout = ()=> {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  usePushNotifications()
+  usePushNotifications();
 
   useEffect(() => {
     registerForPushNotificationsAsync()
-}, []);
+  }, []);
 
-  
+ 
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();

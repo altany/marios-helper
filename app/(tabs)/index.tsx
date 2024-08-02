@@ -1,23 +1,31 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {  StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { usePushNotifications } from '../services/notifications';
-import { scheduleMedicationReminders} from '../services/notifications';
-//import * as Notifications from 'expo-notifications';
-export default function App() {
-  const {lastNotificationResponse} = usePushNotifications();
+import { scheduleMedicationReminders, getLastNotifactionResponse } from '../services/notifications';
+import * as Notifications from 'expo-notifications';
 
+export default function App() {
+
+
+  const [lastNotificationResponse, setLastNotificationResponse] = useState<Notifications.NotificationResponse| null>(null)
   useEffect(() => {
     scheduleMedicationReminders();
-    /* Notifications.getPresentedNotificationsAsync().then((notifications) => 
-      notifications.map(notification=>{
-        console.log('notification', notification)
-  }) )*/
+  }, []);
   
-
+  useEffect(() => {
+    const getLastResponse = async () => {
+      await getLastNotifactionResponse().then((response) => {
+        if (response) {
+          setLastNotificationResponse(response);
+        }
+      });
+    }
+    getLastResponse();
+    
   }, []);
 
+  console.log('lastNotificationResponse', lastNotificationResponse) 
   const {title, body} = lastNotificationResponse?.notification?.request?.content || {};
 
   return (

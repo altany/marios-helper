@@ -129,6 +129,10 @@ export const getScheduledNotifications = async () => {
   return scheduledNotifications;
 }
 
+export const getLastNotifactionResponse = async () => {
+  return await Notifications.getLastNotificationResponseAsync()
+}
+
 export const resetNotifications = async () => {
   await Notifications.cancelAllScheduledNotificationsAsync();
   scheduleMedicationReminders();
@@ -206,14 +210,11 @@ const showDefaultActionAlert = async (text: string) => {
   })
 };
 
+
 export const usePushNotifications = () => {
-  const [lastNotificationResponse, setLastNotificationResponse] = useState<Notifications.NotificationResponse | undefined>(
-    undefined
-  );
 
   const handleNotificationResponse = async (response: Notifications.NotificationResponse) => {
     console.log('Action', response);
-    setLastNotificationResponse(response);
 
     const { content: { body, data, categoryIdentifier }, trigger, identifier } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any, identifier: string };
     const { medication } = data;
@@ -290,18 +291,19 @@ export const usePushNotifications = () => {
   };
 
   const handleBackgroundNotificationResponse = async () => {
-    const response = await Notifications.getLastNotificationResponseAsync();
+    const response = await getLastNotifactionResponse();
+    console.log('In BACKGROUND handler')
     if (response) {
       handleNotificationResponse(response)
     }
   };
 
   useEffect(() => {
-
     handleBackgroundNotificationResponse();
-
-    const responseListener = Notifications.addNotificationResponseReceivedListener(
-      handleNotificationResponse
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('In FOREGROUND handler')
+      handleNotificationResponse(response)
+    }
     );
 
     return () => {
@@ -309,5 +311,5 @@ export const usePushNotifications = () => {
     };
   }, []);
 
-  return { lastNotificationResponse };
+
 };
