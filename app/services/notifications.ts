@@ -16,8 +16,7 @@ Notifications.setNotificationHandler({
 
 const schedule = [
   { hour: 9, },
-  { hour: 14, },
-  { hour: 18, },
+  { hour: 15, },
   { hour: 21, },
 ];
 
@@ -51,14 +50,6 @@ const completed = {
   },
 }
 
-Notifications.setNotificationCategoryAsync('exocin-reminder', [
-  snooze,
-  {
-    ...next,
-    buttonTitle: 'Hylogel σε 20\''
-  },
-]);
-
 Notifications.setNotificationCategoryAsync('hylogel-reminder', [
   snooze,
   {
@@ -74,12 +65,11 @@ Notifications.setNotificationCategoryAsync('last-reminder', [
 
 const initialNotificationContent = {
   ...notificationCommonContent,
-  categoryIdentifier: 'exocin-reminder',
-  body: `Σταγόνες Exocin - 1 σταγόνα στο αριστερό`,
+  body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
   data: {
-    text: 'Σταγόνες Exocin - 1 σταγόνα στο αριστερό',
-    medication: 'exocin'
-  },
+    text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
+    medication: 'hylogel'
+  }
 }
 
 
@@ -94,6 +84,7 @@ export const scheduleMedicationReminders = async () => {
       await Notifications.scheduleNotificationAsync({
         content: {
           ...initialNotificationContent,
+          categoryIdentifier: time.hour === 9 || time.hour === 21 ? 'hylogel-reminder' : 'last-reminder',
           data: {
             ...initialNotificationContent.data,
             hour: time.hour
@@ -144,6 +135,7 @@ export const useScheduledNotifications = () => {
     await Notifications.scheduleNotificationAsync({
       content: {
         ...initialNotificationContent,
+        categoryIdentifier: 'hylogel-reminder',
         data: {
           ...initialNotificationContent.data,
           hour: 0
@@ -278,16 +270,6 @@ export const usePushNotifications = () => {
       let notificationData;
 
       switch (medication) {
-        case 'exocin':
-          notificationData = {
-            categoryIdentifier: hour === 9 || hour === 21 ? 'hylogel-reminder' : 'last-reminder',
-            body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-            data: {
-              text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-              medication: 'hylogel'
-            }
-          };
-          break;
         case 'hylogel':
           notificationData = {
             categoryIdentifier: 'last-reminder',
