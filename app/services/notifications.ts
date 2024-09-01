@@ -77,11 +77,12 @@ const initialNotificationContent = {
 export const scheduleMedicationReminders = async () => {
   const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
   const hours = scheduledNotifications.map(notification => notification.trigger.hour);
-  const hasAllHours = [9, 14, 18, 21].every(hour => hours.includes(hour));
+  const hasAllHours = [9, 15, 21].every(hour => hours.includes(hour));
   console.log('Scheduled notifications already set?', hasAllHours);
   if (!hasAllHours) {
     for (const time of schedule) {
-      await Notifications.scheduleNotificationAsync({
+
+      const notificationsSchedule = {
         content: {
           ...initialNotificationContent,
           categoryIdentifier: time.hour === 9 || time.hour === 21 ? 'hylogel-reminder' : 'last-reminder',
@@ -95,7 +96,9 @@ export const scheduleMedicationReminders = async () => {
           minute: 0,
           repeats: true,
         },
-      })
+      }
+
+      await Notifications.scheduleNotificationAsync(notificationsSchedule)
     }
   }
 
