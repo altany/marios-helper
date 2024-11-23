@@ -2,8 +2,9 @@
 
 Meet Mario, my adorable furry friend who needs a bit of extra care! This app was born out of love (and necessity) to help manage Mario's daily medication schedule. As any pet parent knows, keeping track of multiple medications throughout the day can be quite overwhelming. But with Mario's Helper, it's become a breeze!
 
-[Insert Mario's cute photo here]
-
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/5eac1eae-370d-4c6e-ae34-c27cc136c2dd" height="600" alt="Mario">
+</div>
 This personal project sends me notifications at specific times during the day to remind me when it's time for Mario's eye drops and ointments. It even makes sure I wait the right amount of time between different medications. No more forgetting or mixing up the schedule - Mario's eyes are happy, and so am I! 🥰
 
 ## For Developers 🛠️
