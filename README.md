@@ -1,8 +1,16 @@
-# Welcome to your Expo app 👋
+# Mario's Helper 🐕 💊
+
+Meet Mario, my adorable furry friend who needs a bit of extra care! This app was born out of love (and necessity) to help manage Mario's daily medication schedule. As any pet parent knows, keeping track of multiple medications throughout the day can be quite overwhelming. But with Mario's Helper, it's become a breeze!
+
+[Insert Mario's cute photo here]
+
+This personal project sends me notifications at specific times during the day to remind me when it's time for Mario's eye drops and ointments. It even makes sure I wait the right amount of time between different medications. No more forgetting or mixing up the schedule - Mario's eyes are happy, and so am I! 🥰
+
+## For Developers 🛠️
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## Get started
+### Getting Started
 
 1. Install dependencies
 
@@ -13,38 +21,17 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 2. Start the app
 
    ```bash
-    npx expo start
+   npx expo start
    ```
 
-In the output, you'll find options to open the app in a
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Building the App
 
 ```bash
-npm run reset-project
+eas build
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+More specifically, to create a build for Android using the preview profile:
+```bash
+eas build -p android --profile preview
+```
