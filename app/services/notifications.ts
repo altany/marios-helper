@@ -85,7 +85,7 @@ export const scheduleMedicationReminders = async () => {
       const notificationsSchedule = {
         content: {
           ...initialNotificationContent,
-          categoryIdentifier: time.hour === 9 || time.hour === 21 ? 'hylogel-reminder' : 'last-reminder',
+          categoryIdentifier: time.hour === 15 ? 'last-reminder' : 'hylogel-reminder',
           data: {
             ...initialNotificationContent.data,
             hour: time.hour
@@ -214,22 +214,36 @@ export const registerForPushNotificationsAsync = async () => {
   }
 }
 
-const showDefaultActionAlert = async (text: string) => {
+
+
+const showDefaultActionAlert = async (text: string, hour: number) => {
   return new Promise<string>((resolve) => {
+    const actionsNext = [
+      {
+        text: 'Θυμησε το μου ξανα',
+        onPress: () => resolve('SNOOZE')
+      },
+      {
+        text: 'Το έδωσα',
+        onPress: () => resolve('NEXT'),
+      },
+    ]
+    
+    const actionsCompleted = [
+      {
+        text: 'Θυμησε το μου ξανα',
+        onPress: () => resolve('SNOOZE')
+      },
+      {
+        text: 'Τέλος',
+        onPress: () => resolve('COMPLETE')
+      },
+    ]
     console.log('in alert')
     Alert.alert(
       'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
       text,
-      [
-        {
-          text: 'Θυμησε το μου ξανα',
-          onPress: () => resolve('SNOOZE')
-        },
-        {
-          text: 'Το έδωσα',
-          onPress: () => resolve('NEXT'),
-        },
-      ],
+      hour===15 ? actionsCompleted : actionsNext,
     );
   })
 };
@@ -251,7 +265,7 @@ export const usePushNotifications = () => {
 
     if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
       console.log('should show alert now')
-      const alertResponse = await showDefaultActionAlert(body);
+      const alertResponse = await showDefaultActionAlert(body, hour);
       console.log('User selected:', alertResponse);
       response.actionIdentifier = alertResponse;
       handleNotificationResponse(response);
