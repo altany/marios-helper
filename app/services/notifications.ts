@@ -15,7 +15,6 @@ Notifications.setNotificationHandler({
 
 const schedule = [
   { hour: 9, },
-  { hour: 15, },
   { hour: 21, },
 ];
 
@@ -50,8 +49,9 @@ const completed = {
   },
 }
 
-Notifications.setNotificationCategoryAsync('hylogel-reminder', [snooze, next]);
-Notifications.setNotificationCategoryAsync('last-reminder', [snooze, completed]);
+// Categories based on available actions
+Notifications.setNotificationCategoryAsync('complete-category', [snooze, completed]);
+Notifications.setNotificationCategoryAsync('next-category', [snooze, next]);
 
 const initialNotificationContent = {
   ...notificationCommonContent,
@@ -65,7 +65,7 @@ const initialNotificationContent = {
 export const scheduleMedicationReminders = async () => {
   const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
   const hours = scheduledNotifications.map(notification => notification.trigger.hour);
-  const hasAllHours = [9, 15, 21].every(hour => hours.includes(hour));
+  const hasAllHours = [9, 21].every(hour => hours.includes(hour));
   console.log('Scheduled notifications already set?', hasAllHours);
   if (!hasAllHours) {
     for (const time of schedule) {
@@ -73,7 +73,7 @@ export const scheduleMedicationReminders = async () => {
       const notificationsSchedule = {
         content: {
           ...initialNotificationContent,
-          categoryIdentifier: time.hour === 15 ? 'last-reminder' : 'hylogel-reminder',
+          categoryIdentifier: time.hour === 9 ? 'complete-category' : 'next-category',
           data: {
             ...initialNotificationContent.data,
             hour: time.hour
@@ -126,7 +126,7 @@ export const useScheduledNotifications = () => {
     await Notifications.scheduleNotificationAsync({
       content: {
         ...initialNotificationContent,
-        categoryIdentifier: 'hylogel-reminder',
+        categoryIdentifier: 'next-category',
         data: {
           ...initialNotificationContent.data,
           hour: 0
@@ -225,7 +225,7 @@ const showDefaultActionAlert = async (text: string, hour: number) => {
     Alert.alert(
       'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
       text,
-      [...baseActions, hour === 15 ? completeAction : nextAction],
+      [...baseActions, hour === 21 ? nextAction : completeAction],
     );
   })
 };
@@ -269,28 +269,29 @@ export const usePushNotifications = () => {
 
       switch (medication) {
         case 'hylogel':
-          notificationData = {
-            categoryIdentifier: 'last-reminder',
-            body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-            data: {
-              text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-              medication: 'lacrimmune'
-            }
-          };
+            notificationData = {
+              categoryIdentifier: 'complete-category',
+              body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+              data: {
+                text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+                medication: 'lacrimmune',
+                hour
+              }
+            };
           break;
       }
 
       console.log(`Next notification for ${JSON.stringify(notificationData)}`);
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          ...notificationCommonContent,
-          ...notificationData
-        },
-        trigger: {
-          seconds: 20 * 60, // 20 minutes
-        },
-      });
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            ...notificationCommonContent,
+            ...notificationData
+          },
+          trigger: {
+            seconds: 20 * 60, // 20 minutes
+          },
+        });
     } else if (actionIdentifier === 'COMPLETE') {
       // Handle the task completion
       console.log(`${medication} was given`);
