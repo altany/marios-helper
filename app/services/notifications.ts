@@ -13,7 +13,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-
 const schedule = [
   { hour: 9, },
   { hour: 15, },
@@ -37,6 +36,7 @@ const snooze = {
 
 const next = {
   identifier: 'NEXT',
+  buttonTitle: 'Lacrimmune σε 20\'',
   options: {
     opensAppToForeground: false,
   },
@@ -50,18 +50,8 @@ const completed = {
   },
 }
 
-Notifications.setNotificationCategoryAsync('hylogel-reminder', [
-  snooze,
-  {
-    ...next,
-    buttonTitle: 'Lacrimmune σε 20\''
-  },
-]);
-
-Notifications.setNotificationCategoryAsync('last-reminder', [
-  snooze,
-  completed
-]);
+Notifications.setNotificationCategoryAsync('hylogel-reminder', [snooze, next]);
+Notifications.setNotificationCategoryAsync('last-reminder', [snooze, completed]);
 
 const initialNotificationContent = {
   ...notificationCommonContent,
@@ -71,8 +61,6 @@ const initialNotificationContent = {
     medication: 'hylogel'
   }
 }
-
-
 
 export const scheduleMedicationReminders = async () => {
   const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
@@ -214,40 +202,33 @@ export const registerForPushNotificationsAsync = async () => {
   }
 }
 
-
-
 const showDefaultActionAlert = async (text: string, hour: number) => {
   return new Promise<string>((resolve) => {
-    const actionsNext = [
+    const baseActions = [
       {
         text: 'Θυμησε το μου ξανα',
         onPress: () => resolve('SNOOZE')
-      },
-      {
-        text: 'Το έδωσα',
-        onPress: () => resolve('NEXT'),
-      },
-    ]
-    
-    const actionsCompleted = [
-      {
-        text: 'Θυμησε το μου ξανα',
-        onPress: () => resolve('SNOOZE')
-      },
-      {
-        text: 'Τέλος',
-        onPress: () => resolve('COMPLETE')
-      },
-    ]
+      }
+    ];
+
+    const completeAction = {
+      text: 'Τέλος',
+      onPress: () => resolve('COMPLETE')
+    };
+
+    const nextAction = {
+      text: 'Το έδωσα',
+      onPress: () => resolve('NEXT')
+    };
+
     console.log('in alert')
     Alert.alert(
       'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
       text,
-      hour===15 ? actionsCompleted : actionsNext,
+      [...baseActions, hour === 15 ? completeAction : nextAction],
     );
   })
 };
-
 
 export const usePushNotifications = () => {
 
