@@ -53,12 +53,22 @@ const notificationCommonContent = {
   sticky: true
 }
 
-const snooze = {
-  identifier: 'SNOOZE',
-  buttonTitle: 'Αργότερα (10\')',
-  options: {
-    opensAppToForeground: false,
-  },
+const snooze10 = {
+  identifier: 'SNOOZE_10',
+  buttonTitle: "Αργότερα (10')",
+  options: { opensAppToForeground: false },
+}
+
+const snooze30 = {
+  identifier: 'SNOOZE_30',
+  buttonTitle: "Αργότερα (30')",
+  options: { opensAppToForeground: false },
+}
+
+const snooze60 = {
+  identifier: 'SNOOZE_60',
+  buttonTitle: 'Αργότερα (1ω)',
+  options: { opensAppToForeground: false },
 }
 
 const next = {
@@ -203,8 +213,8 @@ export const registerForPushNotificationsAsync = async () => {
     }
 
     try {
-      await Notifications.setNotificationCategoryAsync('complete-category', [snooze, completed]);
-      await Notifications.setNotificationCategoryAsync('next-category', [snooze, next]);
+      await Notifications.setNotificationCategoryAsync('complete-category', [snooze10, snooze30, snooze60, completed]);
+      await Notifications.setNotificationCategoryAsync('next-category', [snooze10, snooze30, snooze60, next]);
     } catch (e) {
       console.error('Failed to register notification categories:', e);
     }
