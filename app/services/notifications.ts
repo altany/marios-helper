@@ -2,7 +2,6 @@ import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Device from 'expo-device';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Tracks the last notification identifier processed, to prevent double-handling
@@ -205,22 +204,6 @@ export const registerForPushNotificationsAsync = async () => {
       await Notifications.setNotificationCategoryAsync('next-category', [snooze, next]);
     } catch (e) {
       console.error('Failed to register notification categories:', e);
-    }
-
-    const projectId =
-      Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-    if (!projectId) {
-      handleRegistrationError('Project ID not found');
-    }
-    try {
-      const pushTokenString = (
-        await Notifications.getExpoPushTokenAsync({
-          projectId,
-        })
-      ).data;
-      return pushTokenString;
-    } catch (e: unknown) {
-      handleRegistrationError(`${e}`);
     }
   } else {
     handleRegistrationError('Must use physical device for push notifications');
