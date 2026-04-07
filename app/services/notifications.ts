@@ -1,6 +1,5 @@
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -206,35 +205,32 @@ export const registerForPushNotificationsAsync = async () => {
   }
 }
 
-const showDefaultActionAlert = async (text: string, hour: number) => {
-  return new Promise<string>((resolve) => {
-    const baseActions = [
-      {
-        text: 'Θυμησε το μου ξανα',
-        onPress: () => resolve('SNOOZE')
-      }
-    ];
-
-    const completeAction = {
-      text: 'Τέλος',
-      onPress: () => resolve('COMPLETE')
-    };
-
-    const nextAction = {
-      text: 'Το έδωσα',
-      onPress: () => resolve('NEXT')
-    };
-
-    console.log('in alert')
-    Alert.alert(
-      'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
-      text,
-      [...baseActions, hour === 15 ? completeAction : nextAction],
-    );
-  })
+export type NotificationModal = {
+  visible: boolean;
+  body: string;
+  hour: number;
+  resolve: ((action: string) => void) | null;
 };
 
 export const usePushNotifications = () => {
+
+  const [notificationModal, setNotificationModal] = useState<NotificationModal>({
+    visible: false,
+    body: '',
+    hour: 0,
+    resolve: null,
+  });
+
+  const showActionModal = (body: string, hour: number): Promise<string> => {
+    return new Promise((resolve) => {
+      setNotificationModal({ visible: true, body, hour, resolve });
+    });
+  };
+
+  const handleModalAction = (action: string) => {
+    notificationModal.resolve?.(action);
+    setNotificationModal(prev => ({ ...prev, visible: false, resolve: null }));
+  };
 
   const handleNotificationResponse = async (response: Notifications.NotificationResponse, skipGuard = false) => {
     console.log('Action', response);
@@ -264,7 +260,7 @@ export const usePushNotifications = () => {
 
     if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
       console.log('should show alert now')
-      const alertResponse = await showDefaultActionAlert(body, hour);
+      const alertResponse = await showActionModal(body, hour);
       console.log('User selected:', alertResponse);
       response.actionIdentifier = alertResponse;
       await handleNotificationResponse(response, true);
@@ -340,5 +336,6 @@ export const usePushNotifications = () => {
     };
   }, []);
 
+  return { notificationModal, handleModalAction };
 
 };
