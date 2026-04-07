@@ -54,9 +54,20 @@ const  RootLayout = ()=> {
           <View style={modalStyles.dialog}>
             <Text style={modalStyles.title}>Φάρμακο Μάριο</Text>
             <Text style={modalStyles.body}>{notificationModal.body}</Text>
-            <TouchableOpacity style={modalStyles.button} onPress={() => handleModalAction('SNOOZE')}>
-              <Text style={modalStyles.buttonText}>Θυμησε το μου ξανα (10')</Text>
-            </TouchableOpacity>
+            <Text style={modalStyles.snoozeLabel}>Θυμησε το μου ξανα σε:</Text>
+            <View style={modalStyles.snoozeRow}>
+              {([10, 30, 60, 120] as const).map((minutes) => (
+                <TouchableOpacity
+                  key={minutes}
+                  style={modalStyles.snoozeButton}
+                  onPress={() => handleModalAction(`SNOOZE_${minutes}`)}
+                >
+                  <Text style={modalStyles.snoozeButtonText}>
+                    {minutes < 60 ? `${minutes}'` : `${minutes / 60}ω`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             {notificationModal.hour === 15 ? (
               <TouchableOpacity style={[modalStyles.button, modalStyles.primaryButton]} onPress={() => handleModalAction('COMPLETE')}>
                 <Text style={modalStyles.buttonText}>Τέλος</Text>
@@ -97,6 +108,27 @@ const modalStyles = StyleSheet.create({
     color: '#cdd6f4',
     fontSize: 15,
     marginBottom: 8,
+  },
+  snoozeLabel: {
+    color: '#a6adc8',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  snoozeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  snoozeButton: {
+    flex: 1,
+    backgroundColor: '#317181',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  snoozeButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   button: {
     backgroundColor: '#317181',

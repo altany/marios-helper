@@ -264,9 +264,15 @@ export const usePushNotifications = () => {
     hour: number,
     notificationIdentifier?: string,
   ) => {
-    if (actionIdentifier === 'SNOOZE') {
-      console.log(`Snoozing ${medication} for ${hour}:00`);
-      await setSnoozedUntil(hour, Date.now() + 10 * 60 * 1000);
+    if (actionIdentifier === 'SNOOZE' || actionIdentifier.startsWith('SNOOZE_')) {
+      // Plain 'SNOOZE' comes from the OS notification button (fixed 10min).
+      // 'SNOOZE_N' comes from the in-app modal where N is minutes chosen by user.
+      const minutes = actionIdentifier === 'SNOOZE'
+        ? 10
+        : parseInt(actionIdentifier.split('_')[1]);
+      const seconds = minutes * 60;
+      console.log(`Snoozing ${medication} for ${hour}:00 by ${minutes} minutes`);
+      await setSnoozedUntil(hour, Date.now() + seconds * 1000);
       await Notifications.scheduleNotificationAsync({
         content: {
           body,
@@ -274,7 +280,7 @@ export const usePushNotifications = () => {
           categoryIdentifier,
           ...notificationCommonContent,
         },
-        trigger: { seconds: 10 * 60 },
+        trigger: { seconds },
       });
     } else if (actionIdentifier === 'NEXT') {
       console.log(`Preparing Lacrimmune notification after ${medication} for ${hour}:00`);
