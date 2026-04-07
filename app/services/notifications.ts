@@ -4,6 +4,9 @@ import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const HANDLED_NOTIFICATION_KEY = 'lastHandledNotificationId';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -233,11 +236,25 @@ const showDefaultActionAlert = async (text: string, hour: number) => {
 
 export const usePushNotifications = () => {
 
-  const handleNotificationResponse = async (response: Notifications.NotificationResponse) => {
+  const handleNotificationResponse = async (response: Notifications.NotificationResponse, skipGuard = false) => {
     console.log('Action', response);
 
     const { content: { body, data, categoryIdentifier }, trigger, identifier } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any, identifier: string };
     const { medication } = data;
+
+    // Guard: skip if this notification was already handled (prevents double-firing
+    // when both getLastNotificationResponseAsync and the response listener trigger
+    // for the same notification on app resume).
+    // skipGuard is true for recursive calls after the in-app alert resolves,
+    // where the identifier is the same but a real action needs to be processed.
+    if (!skipGuard) {
+      const lastHandledId = await AsyncStorage.getItem(HANDLED_NOTIFICATION_KEY);
+      if (lastHandledId === identifier) {
+        console.log('Notification already handled, skipping:', identifier);
+        return;
+      }
+      await AsyncStorage.setItem(HANDLED_NOTIFICATION_KEY, identifier);
+    }
 
     // Extract the hour if the trigger is time-based
     const hour = (trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined) ?
@@ -250,7 +267,8 @@ export const usePushNotifications = () => {
       const alertResponse = await showDefaultActionAlert(body, hour);
       console.log('User selected:', alertResponse);
       response.actionIdentifier = alertResponse;
-      handleNotificationResponse(response);
+      await handleNotificationResponse(response, true);
+      return;
     } else if (actionIdentifier === 'SNOOZE') {
       const newTrigger = { seconds: 10 * 60 }; // 10 minutes
       console.log(`Snoozing ${medication} for ${hour}:00`);
