@@ -31,7 +31,10 @@ const getSnoozedUntil = async (hour: number): Promise<number> => {
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // Suppress the system banner when the app is in the foreground — the
+    // in-app modal is shown instead via addNotificationReceivedListener,
+    // which cannot be swiped away. Show the banner only when backgrounded.
+    shouldShowAlert: AppState.currentState !== 'active',
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -404,12 +407,23 @@ export const usePushNotifications = () => {
       }
     });
 
+    // When a notification arrives while the app is foregrounded, skip the
+    // system banner (suppressed above) and show the non-dismissable modal directly.
+    const receivedListener = Notifications.addNotificationReceivedListener(async (notification) => {
+      console.log('Notification received in foreground');
+      const { body, data, categoryIdentifier } = notification.request.content as { body: string, data: any, categoryIdentifier: string };
+      const { medication, hour } = data;
+      const action = await showActionModal(body, hour);
+      await processAction(action, medication, body, categoryIdentifier, hour, notification.request.identifier);
+    });
+
     const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('In FOREGROUND handler');
+      console.log('In response handler');
       handleNotificationResponse(response);
     });
 
     return () => {
+      receivedListener.remove();
       responseListener.remove();
       appStateSubscription.remove();
     };
