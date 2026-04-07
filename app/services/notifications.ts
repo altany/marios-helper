@@ -52,9 +52,6 @@ const completed = {
   },
 }
 
-// Categories based on available actions
-Notifications.setNotificationCategoryAsync('complete-category', [snooze, completed]);
-Notifications.setNotificationCategoryAsync('next-category', [snooze, next]);
 
 const initialNotificationContent = {
   ...notificationCommonContent,
@@ -185,6 +182,14 @@ export const registerForPushNotificationsAsync = async () => {
       handleRegistrationError('Permission not granted to get push token for push notification!');
       return;
     }
+
+    try {
+      await Notifications.setNotificationCategoryAsync('complete-category', [snooze, completed]);
+      await Notifications.setNotificationCategoryAsync('next-category', [snooze, next]);
+    } catch (e) {
+      console.error('Failed to register notification categories:', e);
+    }
+
     const projectId =
       Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
     if (!projectId) {
