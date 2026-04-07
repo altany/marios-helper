@@ -15,6 +15,7 @@ Notifications.setNotificationHandler({
 
 const schedule = [
   { hour: 9, },
+  { hour: 15, },
   { hour: 21, },
 ];
 
@@ -65,7 +66,7 @@ const initialNotificationContent = {
 export const scheduleMedicationReminders = async () => {
   const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
   const hours = scheduledNotifications.map(notification => notification.trigger.hour);
-  const hasAllHours = [9, 21].every(hour => hours.includes(hour));
+  const hasAllHours = [9, 15, 21].every(hour => hours.includes(hour));
   console.log('Scheduled notifications already set?', hasAllHours);
   if (!hasAllHours) {
     for (const time of schedule) {
@@ -73,7 +74,7 @@ export const scheduleMedicationReminders = async () => {
       const notificationsSchedule = {
         content: {
           ...initialNotificationContent,
-          categoryIdentifier: time.hour === 9 ? 'complete-category' : 'next-category',
+          categoryIdentifier: time.hour === 15 ? 'complete-category' : 'next-category',
           data: {
             ...initialNotificationContent.data,
             hour: time.hour
@@ -225,7 +226,7 @@ const showDefaultActionAlert = async (text: string, hour: number) => {
     Alert.alert(
       'Έδωσες το φάρκακο ή να σου το θυμήσω αργότερα',
       text,
-      [...baseActions, hour === 21 ? nextAction : completeAction],
+      [...baseActions, hour === 15 ? completeAction : nextAction],
     );
   })
 };
