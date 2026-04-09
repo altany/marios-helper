@@ -40,18 +40,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Set up the Android channel at module level so it exists before any
-// notification can arrive, regardless of when registerForPushNotificationsAsync runs.
-if (Platform.OS === 'android') {
-  Notifications.setNotificationChannelAsync('medication-alerts', {
-    name: 'Ειδοποιήσεις φαρμάκου Μάριο',
-    importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 400, 200, 400, 200, 600],
-    bypassDnd: true,
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    sound: 'default',
-  });
-}
 
 const schedule = [
   { hour: 9, },
@@ -61,12 +49,23 @@ const schedule = [
 
 const notificationCommonContent = {
   title: 'Υπενθύμιση - Φάρμακο Μάριο',
-  sound: 'default',
+  // Must be boolean true, NOT the string 'default'.
+  // With string 'default', SoundResolver resolves it to a non-null URI, which sets
+  // shouldPlayDefaultSound=false. When shouldVibrate is also false, ExpoNotificationBuilder
+  // calls builder.setSilent(true) — which silences the notification regardless of
+  // the channel's sound settings. With boolean true, shouldPlayDefaultSound=true and
+  // setSilent is never called, so the channel's sound plays correctly in the background.
+  sound: true,
   interruptionLevel: 'timeSensitive' as 'timeSensitive',
   sticky: true,
-  // Android: route through our dedicated channel which has bypassDnd + MAX importance
-  channelId: 'medication-alerts',
 }
+
+// channelId belongs on the trigger (Android), not the content.
+// NOTE: If you ever change CHANNEL_ID, bump the version so Android creates a
+// truly fresh channel (Android restores deleted-channel settings when the same
+// ID is reused, making delete+recreate with the same ID ineffective).
+const CHANNEL_ID = 'medication-alerts-v2';
+const androidTriggerBase = { channelId: CHANNEL_ID };
 
 const snooze_pick = {
   identifier: 'SNOOZE_PICK',
@@ -113,6 +112,7 @@ export const scheduleMedicationReminders = async () => {
           }
         },
         trigger: {
+          ...androidTriggerBase,
           hour: time.hour,
           minute: 0,
           repeats: true,
@@ -163,6 +163,7 @@ export const useScheduledNotifications = () => {
         }
       },
       trigger: {
+        ...androidTriggerBase,
         seconds: 3,
       },
     })
@@ -190,6 +191,18 @@ const handleRegistrationError = (errorMessage: string) => {
   throw new Error(errorMessage);
 }
 
+const setupNotificationChannel = async () => {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    name: 'Ειδοποιήσεις φαρμάκου Μάριο',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 400, 200, 400, 200, 600],
+    bypassDnd: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    sound: 'default',
+  });
+};
+
 export const registerForPushNotificationsAsync = async () => {
   if (Device.isDevice) {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -202,6 +215,8 @@ export const registerForPushNotificationsAsync = async () => {
       handleRegistrationError('Permission not granted to get push token for push notification!');
       return;
     }
+
+    await setupNotificationChannel();
 
     try {
       await Notifications.setNotificationCategoryAsync('complete-category', [snooze_pick, completed]);
@@ -284,7 +299,7 @@ export const usePushNotifications = () => {
           categoryIdentifier,
           ...notificationCommonContent,
         },
-        trigger: { seconds },
+        trigger: { ...androidTriggerBase, seconds },
       });
     } else if (actionIdentifier === 'NEXT') {
       console.log(`Preparing Lacrimmune notification after ${medication} for ${hour}:00`);
@@ -300,7 +315,7 @@ export const usePushNotifications = () => {
               hour,
             },
           },
-          trigger: { seconds: 20 * 60 },
+          trigger: { ...androidTriggerBase, seconds: 20 * 60 },
         });
       }
       await markHandled(hour);
@@ -325,7 +340,6 @@ export const usePushNotifications = () => {
 
     if (!data?.medication) {
       console.log('Notification has no medication data, skipping');
-      Notifications.dismissNotificationAsync(identifier);
       return;
     }
 

@@ -1,33 +1,34 @@
 {
   "expo": {
-  "name": "Mario",
-  "slug": "marios-helper",
-  "version": "3.0.0",
-  "orientation": "portrait",
-  "icon": "./assets/images/icon.png",
-  "scheme": "myapp",
-  "userInterfaceStyle": "automatic",
-  "splash": {
+    "name": "Mario",
+    "slug": "marios-helper",
+    "version": "3.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
-  },
-  "ios": {
-      "supportsTablet": true
-  },
-  "android": {
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.altany.marioshelper"
+    },
+    "android": {
       "adaptiveIcon": {
-      "foregroundImage": "./assets/images/adaptive-icon.png",
-      "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
       "package": "com.altany.marioshelper"
-  },
-  "web": {
+    },
+    "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
-  },
-  "plugins": [
+    },
+    "plugins": [
       "expo-router",
       [
         "expo-notifications",
@@ -37,16 +38,16 @@
           "sounds": []
         }
       ]
-  ],
-  "experiments": {
+    ],
+    "experiments": {
       "typedRoutes": true
-  },
-  "extra": {
+    },
+    "extra": {
       "router": {
-      "origin": false
+        "origin": false
       },
       "eas": {
-      "projectId": "96e3863b-2a0e-4ff1-9abc-83cb166fb511"
+        "projectId": "96e3863b-2a0e-4ff1-9abc-83cb166fb511"
       }
     }
   }
