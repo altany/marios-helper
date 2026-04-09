@@ -40,6 +40,19 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Set up the Android channel at module level so it exists before any
+// notification can arrive, regardless of when registerForPushNotificationsAsync runs.
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('medication-alerts', {
+    name: 'Ειδοποιήσεις φαρμάκου Μάριο',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 400, 200, 400, 200, 600],
+    bypassDnd: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    sound: 'default',
+  });
+}
+
 const schedule = [
   { hour: 9, },
   { hour: 15, },
@@ -50,7 +63,9 @@ const notificationCommonContent = {
   title: 'Υπενθύμιση - Φάρμακο Μάριο',
   sound: 'default',
   interruptionLevel: 'timeSensitive' as 'timeSensitive',
-  sticky: true
+  sticky: true,
+  // Android: route through our dedicated channel which has bypassDnd + MAX importance
+  androidChannelId: 'medication-alerts',
 }
 
 const snooze_pick = {
@@ -176,15 +191,6 @@ const handleRegistrationError = (errorMessage: string) => {
 }
 
 export const registerForPushNotificationsAsync = async () => {
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 500, 500, 500],
-      lightColor: '#FF231F7C',
-    });
-  }
-
   if (Device.isDevice) {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
@@ -304,7 +310,11 @@ export const usePushNotifications = () => {
     }
 
     if (notificationIdentifier) {
-      Notifications.dismissNotificationAsync(notificationIdentifier);
+      try {
+        await Notifications.dismissNotificationAsync(notificationIdentifier);
+      } catch (e) {
+        console.warn('Could not dismiss notification:', e);
+      }
     }
   };
 

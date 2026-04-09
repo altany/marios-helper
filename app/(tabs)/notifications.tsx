@@ -5,20 +5,30 @@ import { useScheduledNotifications } from '../services/notifications';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+const formatTime = (hour: number, minute: number = 0) =>
+  `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+const formatFireTime = (secondsFromNow: number) => {
+  const fireDate = new Date(Date.now() + secondsFromNow * 1000);
+  return formatTime(fireDate.getHours(), fireDate.getMinutes());
+};
+
 export default function Notification() {
-  const { 
-    scheduledNotifications, 
-    getScheduledNotifications, 
-    resetNotifications, 
-    disableNotifications, 
-    test 
+  const {
+    scheduledNotifications,
+    getScheduledNotifications,
+    resetNotifications,
+    disableNotifications,
+    test
   } = useScheduledNotifications();
-  
+
   const dailyNotifications = scheduledNotifications
-  .filter(notification=>{return notification.trigger.type==='daily'})
-  const pendingNotifications = scheduledNotifications.filter((notification) => {
-    return notification.trigger.type === 'timeInterval';
-  })
+    .filter(n => n.trigger.type === 'daily')
+    .sort((a, b) => ((a.trigger as any).hour ?? 0) - ((b.trigger as any).hour ?? 0));
+
+  const pendingNotifications = scheduledNotifications
+    .filter(n => n.trigger.type === 'timeInterval');
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
@@ -27,39 +37,38 @@ export default function Notification() {
       <ThemedView>
         <ThemedText>Καθημερινές ειδοποιήσεις:</ThemedText>
         <ThemedView style={styles.notificationsList}>
-        {dailyNotifications.length === 0 ? (
-          <ThemedText>Οι καθημερινές ειδοποιήσεις δεν έχουν ενεργοποιηθεί!</ThemedText>
-        ) : (
-          <>
-            {dailyNotifications.map((notification, index) => {
-              const { data, body } = notification.content;
+          {dailyNotifications.length === 0 ? (
+            <ThemedText>Οι καθημερινές ειδοποιήσεις δεν έχουν ενεργοποιηθεί!</ThemedText>
+          ) : (
+            dailyNotifications.map((notification, index) => {
+              const { body } = notification.content;
+              const trigger = notification.trigger as any;
+              const time = formatTime(trigger.hour ?? 0, trigger.minute ?? 0);
               return (
                 <ThemedText key={index}>
-                  <Ionicons size={10} name="medical" />
-                  {data.hour > 0 ? `${data.hour}:00` : '(δοκιμή):'} {JSON.stringify(body)}
+                  <Ionicons size={10} name="medical" /> {time} — {body}
                 </ThemedText>
               );
-            })}
-          </>
-        )}
+            })
+          )}
         </ThemedView>
-        <ThemedText>Εκρεμμούν:</ThemedText>
+
+        <ThemedText>Εκκρεμούν:</ThemedText>
         <ThemedView style={styles.notificationsList}>
-          { pendingNotifications.length===0 ? (
-          <ThemedText>Δεν έχεις εκρεμμείς ειδοποιήσεις!</ThemedText>
-          ): (
-            <>
-            { pendingNotifications.map((notification, index) => {
-              const { data, body } = notification.content;
+          {pendingNotifications.length === 0 ? (
+            <ThemedText>Δεν έχεις εκκρεμείς ειδοποιήσεις!</ThemedText>
+          ) : (
+            pendingNotifications.map((notification, index) => {
+              const { body } = notification.content;
+              const trigger = notification.trigger as any;
+              const time = formatFireTime(trigger.seconds ?? 0);
               return (
                 <ThemedText key={index}>
-                  <Ionicons size={10} name="medical" />
-                  {data.hour > 0 ? `${data.hour}:00` : 'δοκιμή:'} {JSON.stringify(body)}
+                  <Ionicons size={10} name="medical" /> {time} — {body}
                 </ThemedText>
               );
-            })}
-            </>)}
-            
+            })
+          )}
         </ThemedView>
       </ThemedView>
       <Button title="Ανανέωση" onPress={getScheduledNotifications} />
@@ -71,29 +80,12 @@ export default function Notification() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    paddingTop: 40,
-    paddingLeft: 20,
-    paddingRight: 20,
-    paddingBottom: 20
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   notificationsList: {
     backgroundColor: '#317181',
-    marginTop:10,
-    marginBottom:10,
-    padding:10,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 10,
+    gap: 6,
   },
   headerImage: {
     color: '#808080',
