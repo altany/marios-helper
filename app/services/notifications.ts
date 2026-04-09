@@ -53,38 +53,23 @@ const notificationCommonContent = {
   sticky: true
 }
 
-const snooze10 = {
-  identifier: 'SNOOZE_10',
-  buttonTitle: "10'",
-  options: { opensAppToForeground: false },
-}
-
-const snooze30 = {
-  identifier: 'SNOOZE_30',
-  buttonTitle: "30'",
-  options: { opensAppToForeground: false },
-}
-
-const snooze60 = {
-  identifier: 'SNOOZE_60',
-  buttonTitle: '1ω',
-  options: { opensAppToForeground: false },
+const snooze_pick = {
+  identifier: 'SNOOZE_PICK',
+  buttonTitle: 'Αργότερα',
+  // Must open the app so the user can choose duration from the wheel picker
+  options: { opensAppToForeground: true },
 }
 
 const next = {
   identifier: 'NEXT',
-  buttonTitle: 'Lacrimmune σε 20\'',
-  options: {
-    opensAppToForeground: false,
-  },
+  buttonTitle: 'Το έδωσα',
+  options: { opensAppToForeground: false },
 }
 
 const completed = {
   identifier: 'COMPLETE',
   buttonTitle: 'Τέλος',
-  options: {
-    opensAppToForeground: false,
-  },
+  options: { opensAppToForeground: false },
 }
 
 const initialNotificationContent = {
@@ -213,8 +198,8 @@ export const registerForPushNotificationsAsync = async () => {
     }
 
     try {
-      await Notifications.setNotificationCategoryAsync('complete-category', [snooze10, snooze30, snooze60, completed]);
-      await Notifications.setNotificationCategoryAsync('next-category', [snooze10, snooze30, snooze60, next]);
+      await Notifications.setNotificationCategoryAsync('complete-category', [snooze_pick, completed]);
+      await Notifications.setNotificationCategoryAsync('next-category', [snooze_pick, next]);
     } catch (e) {
       console.error('Failed to register notification categories:', e);
     }
@@ -356,8 +341,10 @@ export const usePushNotifications = () => {
 
     const actionIdentifier = response.actionIdentifier;
 
-    if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
-      console.log('should show modal now');
+    if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER || actionIdentifier === 'SNOOZE_PICK') {
+      // DEFAULT_ACTION_IDENTIFIER = user tapped the notification body
+      // SNOOZE_PICK = user tapped "Αργότερα" in the shade (opens app for wheel picker)
+      console.log('showing modal for action:', actionIdentifier);
       const alertResponse = await showActionModal(body, hour);
       console.log('User selected:', alertResponse);
       response.actionIdentifier = alertResponse;
