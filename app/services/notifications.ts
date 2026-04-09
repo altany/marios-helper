@@ -55,19 +55,19 @@ const notificationCommonContent = {
 
 const snooze10 = {
   identifier: 'SNOOZE_10',
-  buttonTitle: "Αργότερα (10')",
+  buttonTitle: "10'",
   options: { opensAppToForeground: false },
 }
 
 const snooze30 = {
   identifier: 'SNOOZE_30',
-  buttonTitle: "Αργότερα (30')",
+  buttonTitle: "30'",
   options: { opensAppToForeground: false },
 }
 
 const snooze60 = {
   identifier: 'SNOOZE_60',
-  buttonTitle: 'Αργότερα (1ω)',
+  buttonTitle: '1ω',
   options: { opensAppToForeground: false },
 }
 
@@ -327,6 +327,13 @@ export const usePushNotifications = () => {
     console.log('Action', response);
 
     const { content: { body, data, categoryIdentifier }, trigger, identifier } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any, identifier: string };
+
+    if (!data?.medication) {
+      console.log('Notification has no medication data, skipping');
+      Notifications.dismissNotificationAsync(identifier);
+      return;
+    }
+
     const { medication } = data;
 
     // Guard: skip if this notification was already handled (prevents double-firing
