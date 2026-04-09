@@ -65,7 +65,7 @@ const notificationCommonContent = {
   interruptionLevel: 'timeSensitive' as 'timeSensitive',
   sticky: true,
   // Android: route through our dedicated channel which has bypassDnd + MAX importance
-  androidChannelId: 'medication-alerts',
+  channelId: 'medication-alerts',
 }
 
 const snooze_pick = {
@@ -426,6 +426,10 @@ export const usePushNotifications = () => {
     const receivedListener = Notifications.addNotificationReceivedListener(async (notification) => {
       console.log('Notification received in foreground');
       const { body, data, categoryIdentifier } = notification.request.content as { body: string, data: any, categoryIdentifier: string };
+      if (!data?.medication) {
+        console.log('Foreground notification has no medication data, skipping');
+        return;
+      }
       const { medication, hour } = data;
       const action = await showActionModal(body, hour);
       await processAction(action, medication, body, categoryIdentifier, hour, notification.request.identifier);
