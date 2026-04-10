@@ -150,19 +150,19 @@ const RootLayout = () => {
                   <Text style={modalStyles.buttonText}>Αργότερα...</Text>
                 </TouchableOpacity>
 
-                {notificationModal.hour === 15 ? (
+                {notificationModal.hasChain ? (
+                  <TouchableOpacity
+                    style={[modalStyles.button, modalStyles.primaryButton]}
+                    onPress={() => handleModalAction('NEXT')}
+                  >
+                    <Text style={modalStyles.buttonText}>Το έδωσα</Text>
+                  </TouchableOpacity>
+                ) : (
                   <TouchableOpacity
                     style={[modalStyles.button, modalStyles.primaryButton]}
                     onPress={() => handleModalAction('COMPLETE')}
                   >
                     <Text style={modalStyles.buttonText}>Τέλος</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[modalStyles.button, modalStyles.primaryButton]}
-                    onPress={() => handleModalAction('NEXT')}
-                  >
-                    <Text style={modalStyles.buttonText}>Το έδωσα → Lacrimmune σε 20'</Text>
                   </TouchableOpacity>
                 )}
               </>

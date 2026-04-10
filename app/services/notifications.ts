@@ -3,29 +3,32 @@ import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getMedicationSettings, DEFAULT_SETTINGS } from './medicationSettings';
 
 // Tracks the last notification identifier processed, to prevent double-handling
 // when both getLastNotificationResponseAsync and the response listener fire.
 const HANDLED_NOTIFICATION_KEY = 'lastHandledNotificationId';
 
-// Per-hour, per-day keys so we know if a scheduled dose was acted upon today.
+// Per-medication, per-hour, per-day keys so we know if a dose was acted upon today.
 const getTodayString = () => new Date().toISOString().split('T')[0];
-const getHandledKey = (hour: number) => `notif_handled_${hour}_${getTodayString()}`;
-const getSnoozedUntilKey = (hour: number) => `notif_snoozed_until_${hour}`;
+const getHandledKey = (medicationId: string, hour: number) =>
+  `notif_handled_${medicationId}_${hour}_${getTodayString()}`;
+const getSnoozedUntilKey = (medicationId: string, hour: number) =>
+  `notif_snoozed_until_${medicationId}_${hour}`;
 
-const markHandled = (hour: number) =>
-  AsyncStorage.setItem(getHandledKey(hour), 'true');
+const markHandled = (medicationId: string, hour: number) =>
+  AsyncStorage.setItem(getHandledKey(medicationId, hour), 'true');
 
-const wasHandledToday = async (hour: number): Promise<boolean> => {
-  const val = await AsyncStorage.getItem(getHandledKey(hour));
+const wasHandledToday = async (medicationId: string, hour: number): Promise<boolean> => {
+  const val = await AsyncStorage.getItem(getHandledKey(medicationId, hour));
   return val === 'true';
 };
 
-const setSnoozedUntil = (hour: number, until: number) =>
-  AsyncStorage.setItem(getSnoozedUntilKey(hour), String(until));
+const setSnoozedUntil = (medicationId: string, hour: number, until: number) =>
+  AsyncStorage.setItem(getSnoozedUntilKey(medicationId, hour), String(until));
 
-const getSnoozedUntil = async (hour: number): Promise<number> => {
-  const val = await AsyncStorage.getItem(getSnoozedUntilKey(hour));
+const getSnoozedUntil = async (medicationId: string, hour: number): Promise<number> => {
+  const val = await AsyncStorage.getItem(getSnoozedUntilKey(medicationId, hour));
   return val ? parseInt(val) : 0;
 };
 
@@ -40,13 +43,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-
-const schedule = [
-  { hour: 9, },
-  { hour: 15, },
-  { hour: 21, },
-];
-
 const notificationCommonContent = {
   title: 'Υπενθύμιση - Φάρμακο Μάριο',
   // Must be boolean true, NOT the string 'default'.
@@ -58,7 +54,7 @@ const notificationCommonContent = {
   sound: true,
   interruptionLevel: 'timeSensitive' as 'timeSensitive',
   sticky: true,
-}
+};
 
 // channelId belongs on the trigger (Android), not the content.
 // NOTE: If you ever change CHANNEL_ID, bump the version so Android creates a
@@ -70,61 +66,55 @@ const androidTriggerBase = { channelId: CHANNEL_ID };
 const snooze_pick = {
   identifier: 'SNOOZE_PICK',
   buttonTitle: 'Αργότερα',
-  // Must open the app so the user can choose duration from the wheel picker
   options: { opensAppToForeground: true },
-}
+};
 
 const next = {
   identifier: 'NEXT',
   buttonTitle: 'Το έδωσα',
   options: { opensAppToForeground: false },
-}
+};
 
 const completed = {
   identifier: 'COMPLETE',
   buttonTitle: 'Τέλος',
   options: { opensAppToForeground: false },
-}
-
-const initialNotificationContent = {
-  ...notificationCommonContent,
-  body: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-  data: {
-    text: `Σταγόνες Hylogel - 1 σε κάθε μάτι`,
-    medication: 'hylogel'
-  }
-}
+};
 
 export const scheduleMedicationReminders = async () => {
-  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-  const hours = scheduledNotifications.map(notification => notification.trigger.hour);
-  const hasAllHours = [9, 15, 21].every(hour => hours.includes(hour));
-  console.log('Scheduled notifications already set?', hasAllHours);
-  if (!hasAllHours) {
-    for (const time of schedule) {
-      const notificationsSchedule = {
+  const settings = await getMedicationSettings();
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+
+  for (const med of settings) {
+    if (!med.enabled) continue;
+    for (const hour of med.times) {
+      const alreadyScheduled = scheduled.some(
+        n => n.content.data?.medication === med.id && (n.trigger as any)?.hour === hour,
+      );
+      if (alreadyScheduled) continue;
+
+      const hasChain = med.chainAtHours?.includes(hour) ?? false;
+      const categoryIdentifier = hasChain ? 'next-category' : 'complete-category';
+      console.log(`Scheduling ${med.id} at ${hour}:00, hasChain: ${hasChain}`);
+      await Notifications.scheduleNotificationAsync({
         content: {
-          ...initialNotificationContent,
-          categoryIdentifier: time.hour === 15 ? 'complete-category' : 'next-category',
-          data: {
-            ...initialNotificationContent.data,
-            hour: time.hour
-          }
+          ...notificationCommonContent,
+          body: med.body,
+          categoryIdentifier,
+          data: { medication: med.id, hour, hasChain },
         },
-        trigger: {
-          ...androidTriggerBase,
-          hour: time.hour,
-          minute: 0,
-          repeats: true,
-        },
-      }
-      await Notifications.scheduleNotificationAsync(notificationsSchedule)
+        trigger: { ...androidTriggerBase, hour, minute: 0, repeats: true },
+      });
     }
   }
-}
+};
+
+export const resetAndRescheduleNotifications = async () => {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  await scheduleMedicationReminders();
+};
 
 export const useScheduledNotifications = () => {
-
   const [scheduledNotifications, setScheduledNotifications] = useState<Notifications.NotificationRequest[]>([]);
 
   useEffect(() => {
@@ -133,44 +123,43 @@ export const useScheduledNotifications = () => {
 
   const getScheduledNotifications = async () => {
     const notifications = await Notifications.getAllScheduledNotificationsAsync();
-    setScheduledNotifications(notifications)
-  }
+    setScheduledNotifications(notifications);
+  };
 
   const resetNotifications = async () => {
     await Notifications.cancelAllScheduledNotificationsAsync();
     await scheduleMedicationReminders();
     console.log('Notifications reset');
     const notifications = await Notifications.getAllScheduledNotificationsAsync();
-    console.log(notifications)
-    setScheduledNotifications(notifications)
-  }
+    console.log(notifications);
+    setScheduledNotifications(notifications);
+  };
 
   const disableNotifications = async () => {
     await Notifications.cancelAllScheduledNotificationsAsync();
     console.log('Notifications disabled');
     const notifications = await Notifications.getAllScheduledNotificationsAsync();
-    setScheduledNotifications(notifications)
-  }
+    setScheduledNotifications(notifications);
+  };
 
   const test = async () => {
+    const settings = await getMedicationSettings();
+    const med = settings.find(m => m.enabled) ?? DEFAULT_SETTINGS[0];
+    const testHour = med.times[0] ?? 9;
+    const hasChain = med.chainAtHours?.includes(testHour) ?? false;
     await Notifications.scheduleNotificationAsync({
       content: {
-        ...initialNotificationContent,
-        categoryIdentifier: 'next-category',
-        data: {
-          ...initialNotificationContent.data,
-          hour: 0
-        }
+        ...notificationCommonContent,
+        body: med.body,
+        categoryIdentifier: hasChain ? 'next-category' : 'complete-category',
+        data: { medication: med.id, hour: testHour, hasChain },
       },
-      trigger: {
-        ...androidTriggerBase,
-        seconds: 3,
-      },
-    })
+      trigger: { ...androidTriggerBase, seconds: 3 },
+    });
     console.log('Test notification triggered');
     const notifications = await Notifications.getAllScheduledNotificationsAsync();
-    setScheduledNotifications(notifications)
-  }
+    setScheduledNotifications(notifications);
+  };
 
   return {
     scheduledNotifications,
@@ -178,18 +167,17 @@ export const useScheduledNotifications = () => {
     resetNotifications,
     disableNotifications,
     test,
-    schedule
-  }
-}
+  };
+};
 
 export const getLastNotifactionResponse = async () => {
-  return await Notifications.getLastNotificationResponseAsync()
-}
+  return await Notifications.getLastNotificationResponseAsync();
+};
 
 const handleRegistrationError = (errorMessage: string) => {
   alert(errorMessage);
   throw new Error(errorMessage);
-}
+};
 
 const setupNotificationChannel = async () => {
   if (Platform.OS !== 'android') return;
@@ -227,39 +215,41 @@ export const registerForPushNotificationsAsync = async () => {
   } else {
     handleRegistrationError('Must use physical device for push notifications');
   }
-}
+};
 
 export type NotificationModal = {
   visible: boolean;
   body: string;
   hour: number;
+  hasChain: boolean;
   resolve: ((action: string) => void) | null;
 };
 
 export const usePushNotifications = () => {
-
   const [notificationModal, setNotificationModal] = useState<NotificationModal>({
     visible: false,
     body: '',
     hour: 0,
+    hasChain: false,
     resolve: null,
   });
 
   // Prevents two concurrent showActionModal calls from overlapping.
-  // If a modal is already showing when another fires, default to SNOOZE
+  // If a modal is already showing when another fires, default to snooze 10 min
   // so nothing is silently dropped.
   const isShowingModal = useRef(false);
 
-  const showActionModal = (body: string, hour: number): Promise<string> => {
+  const showActionModal = (body: string, hour: number, hasChain: boolean): Promise<string> => {
     if (isShowingModal.current) {
-      return Promise.resolve('SNOOZE');
+      return Promise.resolve('SNOOZE_10');
     }
     isShowingModal.current = true;
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       setNotificationModal({
         visible: true,
         body,
         hour,
+        hasChain,
         resolve: (action: string) => {
           isShowingModal.current = false;
           resolve(action);
@@ -281,6 +271,7 @@ export const usePushNotifications = () => {
     body: string,
     categoryIdentifier: string,
     hour: number,
+    hasChain: boolean,
     notificationIdentifier?: string,
   ) => {
     if (actionIdentifier === 'SNOOZE' || actionIdentifier.startsWith('SNOOZE_')) {
@@ -291,37 +282,39 @@ export const usePushNotifications = () => {
         : parseInt(actionIdentifier.split('_')[1]);
       const seconds = minutes * 60;
       console.log(`Snoozing ${medication} for ${hour}:00 by ${minutes} minutes`);
-      await setSnoozedUntil(hour, Date.now() + seconds * 1000);
+      await setSnoozedUntil(medication, hour, Date.now() + seconds * 1000);
       await Notifications.scheduleNotificationAsync({
         content: {
           body,
-          data: { medication, hour },
+          data: { medication, hour, hasChain },
           categoryIdentifier,
           ...notificationCommonContent,
         },
         trigger: { ...androidTriggerBase, seconds },
       });
     } else if (actionIdentifier === 'NEXT') {
-      console.log(`Preparing Lacrimmune notification after ${medication} for ${hour}:00`);
-      if (medication === 'hylogel') {
+      const settings = await getMedicationSettings();
+      const med = settings.find(m => m.id === medication);
+      if (med?.chain) {
+        console.log(`Scheduling ${med.chain.medicationId} after ${medication} for ${hour}:00`);
         await Notifications.scheduleNotificationAsync({
           content: {
             ...notificationCommonContent,
             categoryIdentifier: 'complete-category',
-            body: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
+            body: med.chain.body,
             data: {
-              text: `Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ`,
-              medication: 'lacrimmune',
+              medication: med.chain.medicationId,
               hour,
+              hasChain: false,
             },
           },
-          trigger: { ...androidTriggerBase, seconds: 20 * 60 },
+          trigger: { ...androidTriggerBase, seconds: med.chain.delayMinutes * 60 },
         });
       }
-      await markHandled(hour);
+      await markHandled(medication, hour);
     } else if (actionIdentifier === 'COMPLETE') {
-      console.log(`${medication} was given`);
-      await markHandled(hour);
+      console.log(`${medication} at ${hour}:00 marked complete`);
+      await markHandled(medication, hour);
     }
 
     if (notificationIdentifier) {
@@ -333,23 +326,32 @@ export const usePushNotifications = () => {
     }
   };
 
-  const handleNotificationResponse = async (response: Notifications.NotificationResponse, skipGuard = false) => {
+  const handleNotificationResponse = async (
+    response: Notifications.NotificationResponse,
+    skipGuard = false,
+  ) => {
     console.log('Action', response);
 
-    const { content: { body, data, categoryIdentifier }, trigger, identifier } = response.notification.request as { content: { body: string, data: any, categoryIdentifier: string }, trigger: any, identifier: string };
+    const {
+      content: { body, data, categoryIdentifier },
+      trigger,
+      identifier,
+    } = response.notification.request as {
+      content: { body: string; data: any; categoryIdentifier: string };
+      trigger: any;
+      identifier: string;
+    };
 
     if (!data?.medication) {
       console.log('Notification has no medication data, skipping');
       return;
     }
 
-    const { medication } = data;
+    const { medication, hasChain = false } = data;
 
     // Guard: skip if this notification was already handled (prevents double-firing
     // when both getLastNotificationResponseAsync and the response listener trigger
     // for the same notification on app resume).
-    // skipGuard is true for recursive calls after the in-app modal resolves,
-    // where the identifier is the same but a real action needs to be processed.
     if (!skipGuard) {
       const lastHandledId = await AsyncStorage.getItem(HANDLED_NOTIFICATION_KEY);
       if (lastHandledId === identifier) {
@@ -359,56 +361,55 @@ export const usePushNotifications = () => {
       await AsyncStorage.setItem(HANDLED_NOTIFICATION_KEY, identifier);
     }
 
-    // Extract the hour if the trigger is time-based
-    const hour = (trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined) ?
-      trigger.dateComponents.hour : data.hour;
+    // Extract the hour — daily triggers store it in dateComponents, others in data.
+    const hour =
+      trigger && 'dateComponents' in trigger && trigger.dateComponents?.hour !== undefined
+        ? trigger.dateComponents.hour
+        : data.hour;
 
     const actionIdentifier = response.actionIdentifier;
 
-    if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER || actionIdentifier === 'SNOOZE_PICK') {
+    if (
+      actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER ||
+      actionIdentifier === 'SNOOZE_PICK'
+    ) {
       // DEFAULT_ACTION_IDENTIFIER = user tapped the notification body
       // SNOOZE_PICK = user tapped "Αργότερα" in the shade (opens app for wheel picker)
       console.log('showing modal for action:', actionIdentifier);
-      const alertResponse = await showActionModal(body, hour);
+      const alertResponse = await showActionModal(body, hour, hasChain);
       console.log('User selected:', alertResponse);
       response.actionIdentifier = alertResponse;
       await handleNotificationResponse(response, true);
       return;
     }
 
-    await processAction(actionIdentifier, medication, body, categoryIdentifier, hour, identifier);
+    await processAction(actionIdentifier, medication, body, categoryIdentifier, hour, hasChain, identifier);
   };
 
   // On app resume, check whether any scheduled dose was silently dismissed
   // (swiped away from the notification shade without tapping an action).
-  // Shows the in-app modal for each missed dose, sequentially.
+  // Shows the in-app modal for each enabled medication × time, sequentially.
   const checkMissedNotifications = async () => {
+    const settings = await getMedicationSettings();
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
 
-    for (const { hour } of schedule) {
-      // Only check doses whose scheduled time has passed today
-      const hasPassed = currentHour > hour || (currentHour === hour && currentMinute >= 1);
-      if (!hasPassed) continue;
+    for (const med of settings) {
+      if (!med.enabled) continue;
+      for (const hour of med.times) {
+        const hasPassed = currentHour > hour || (currentHour === hour && currentMinute >= 1);
+        if (!hasPassed) continue;
+        if (await wasHandledToday(med.id, hour)) continue;
+        const snoozedUntil = await getSnoozedUntil(med.id, hour);
+        if (snoozedUntil > Date.now()) continue;
 
-      // Skip if already handled (NEXT or COMPLETE was tapped)
-      if (await wasHandledToday(hour)) continue;
-
-      // Skip if still within an active snooze window
-      const snoozedUntil = await getSnoozedUntil(hour);
-      if (snoozedUntil > Date.now()) continue;
-
-      console.log(`Missed notification detected for ${hour}:00 — showing modal`);
-      const categoryIdentifier = hour === 15 ? 'complete-category' : 'next-category';
-      const action = await showActionModal(initialNotificationContent.body, hour);
-      await processAction(
-        action,
-        initialNotificationContent.data.medication,
-        initialNotificationContent.body,
-        categoryIdentifier,
-        hour,
-      );
+        console.log(`Missed notification detected for ${med.id} at ${hour}:00 — showing modal`);
+        const hasChain = med.chainAtHours?.includes(hour) ?? false;
+        const categoryIdentifier = hasChain ? 'next-category' : 'complete-category';
+        const action = await showActionModal(med.body, hour, hasChain);
+        await processAction(action, med.id, med.body, categoryIdentifier, hour, hasChain);
+      }
     }
   };
 
@@ -429,7 +430,7 @@ export const usePushNotifications = () => {
     };
     init();
 
-    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+    const appStateSubscription = AppState.addEventListener('change', nextState => {
       if (nextState === 'active') {
         checkMissedNotifications();
       }
@@ -437,16 +438,28 @@ export const usePushNotifications = () => {
 
     // When a notification arrives while the app is foregrounded, skip the
     // system banner (suppressed above) and show the non-dismissable modal directly.
-    const receivedListener = Notifications.addNotificationReceivedListener(async (notification) => {
+    const receivedListener = Notifications.addNotificationReceivedListener(async notification => {
       console.log('Notification received in foreground');
-      const { body, data, categoryIdentifier } = notification.request.content as { body: string, data: any, categoryIdentifier: string };
+      const { body, data, categoryIdentifier } = notification.request.content as {
+        body: string;
+        data: any;
+        categoryIdentifier: string;
+      };
       if (!data?.medication) {
         console.log('Foreground notification has no medication data, skipping');
         return;
       }
-      const { medication, hour } = data;
-      const action = await showActionModal(body, hour);
-      await processAction(action, medication, body, categoryIdentifier, hour, notification.request.identifier);
+      const { medication, hour, hasChain = false } = data;
+      const action = await showActionModal(body, hour, hasChain);
+      await processAction(
+        action,
+        medication,
+        body,
+        categoryIdentifier,
+        hour,
+        hasChain,
+        notification.request.identifier,
+      );
     });
 
     const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
@@ -462,5 +475,4 @@ export const usePushNotifications = () => {
   }, []);
 
   return { notificationModal, handleModalAction };
-
 };
