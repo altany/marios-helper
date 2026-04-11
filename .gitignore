@@ -20,3 +20,7 @@ expo-env.d.ts
 # @end expo-cli
 marios-helper-firebase-adminsdk-yii3q-7bd0d9d83f.json
 google-services.json
+
+# Generated native projects
+android/
+ios/
