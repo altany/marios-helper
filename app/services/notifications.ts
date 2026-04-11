@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMedicationSettings, DEFAULT_SETTINGS, ChainStep } from './medicationSettings';
@@ -202,6 +202,10 @@ export type NotificationModal = {
   hour: number;
   hasChain: boolean;
   resolve: ((action: string) => void) | null;
+  // Stored so the AppState listener can post a backup when app goes to background.
+  medication?: string;
+  remainingChain?: ChainStep[];
+  categoryIdentifier?: string;
 };
 
 export const usePushNotifications = () => {
@@ -217,23 +221,37 @@ export const usePushNotifications = () => {
   // If a modal is already showing when another fires, default to snooze 10 min
   // so nothing is silently dropped.
   const isShowingModal = useRef(false);
+  const notificationModalRef = useRef<NotificationModal | null>(null);
 
-  const showActionModal = (body: string, hour: number, hasChain: boolean): Promise<string> => {
+  const showActionModal = (
+    body: string,
+    hour: number,
+    hasChain: boolean,
+    medication?: string,
+    remainingChain?: ChainStep[],
+    categoryIdentifier?: string,
+  ): Promise<string> => {
     if (isShowingModal.current) {
       return Promise.resolve('SNOOZE_10');
     }
     isShowingModal.current = true;
     return new Promise(resolve => {
-      setNotificationModal({
+      const modal: NotificationModal = {
         visible: true,
         body,
         hour,
         hasChain,
+        medication,
+        remainingChain,
+        categoryIdentifier,
         resolve: (action: string) => {
           isShowingModal.current = false;
+          notificationModalRef.current = null;
           resolve(action);
         },
-      });
+      };
+      notificationModalRef.current = modal;
+      setNotificationModal(modal);
     });
   };
 
@@ -352,8 +370,9 @@ export const usePushNotifications = () => {
       // DEFAULT_ACTION_IDENTIFIER = user tapped the notification body
       // SNOOZE_PICK = user tapped "Αργότερα" in the shade (opens app for wheel picker)
       console.log('showing modal for action:', actionIdentifier);
-      const alertResponse = await showActionModal(body, hour, hasChain);
+      const alertResponse = await showActionModal(body, hour, hasChain, medication, remainingChain as ChainStep[], categoryIdentifier);
       console.log('User selected:', alertResponse);
+      if (alertResponse === 'BACKGROUND') return;
       response.actionIdentifier = alertResponse;
       await handleNotificationResponse(response, true);
       return;
@@ -376,10 +395,34 @@ export const usePushNotifications = () => {
     };
     init();
 
+    // When the app goes to background while the modal is open, immediately post
+    // the notification to the drawer (at that moment the app IS background so
+    // shouldShowAlert:false no longer suppresses it). The modal promise resolves
+    // with 'BACKGROUND' so we skip processAction — the drawer notification will
+    // be handled when the user taps it later.
+    const appStateListener = AppState.addEventListener('change', async nextState => {
+      if (nextState !== 'background') return;
+      const modal = notificationModalRef.current;
+      if (!modal?.visible || !modal.medication) return;
+      modal.resolve?.('BACKGROUND');
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          ...notificationCommonContent,
+          body: modal.body,
+          categoryIdentifier: modal.categoryIdentifier ?? 'complete-category',
+          data: {
+            medication: modal.medication,
+            hour: modal.hour,
+            hasChain: modal.hasChain,
+            remainingChain: modal.remainingChain ?? [],
+          },
+        },
+        trigger: { ...androidTriggerBase, seconds: 1 },
+      });
+    });
+
     // When a notification arrives while the app is foregrounded, skip the
-    // system banner (suppressed above) and show the non-dismissable modal directly.
-    // Also schedule a backup notification in the drawer after 2s so that if the
-    // user closes the app without acting, the reminder is still visible.
+    // system banner (suppressed above) and show the non-dismissable modal.
     const receivedListener = Notifications.addNotificationReceivedListener(async notification => {
       console.log('Notification received in foreground');
       const { body, data, categoryIdentifier } = notification.request.content as {
@@ -387,31 +430,15 @@ export const usePushNotifications = () => {
         data: any;
         categoryIdentifier: string;
       };
-      // Skip backup notifications (posted by us below) to avoid modal loops.
-      if (!data?.medication || data?.isBackup) {
-        console.log('Foreground notification skipped (no medication data or backup)');
+      if (!data?.medication) {
+        console.log('Foreground notification has no medication data, skipping');
         return;
       }
       const { medication, hour, hasChain = false, remainingChain = [] } = data;
 
-      // Schedule backup into the drawer. shouldShowAlert:false means it won't
-      // appear as a banner while the app is open, but it will be in the drawer
-      // if the user closes the app before acting on the modal.
-      const backupId = await Notifications.scheduleNotificationAsync({
-        content: {
-          ...notificationCommonContent,
-          body,
-          categoryIdentifier,
-          data: { medication, hour, hasChain, remainingChain, isBackup: true },
-        },
-        trigger: { ...androidTriggerBase, seconds: 2 },
-      });
+      const action = await showActionModal(body, hour, hasChain, medication, remainingChain, categoryIdentifier);
 
-      const action = await showActionModal(body, hour, hasChain);
-
-      // User acted — cancel the backup if not yet fired, dismiss it if already in drawer.
-      try { await Notifications.cancelScheduledNotificationAsync(backupId); } catch (_) {}
-      try { await Notifications.dismissNotificationAsync(backupId); } catch (_) {}
+      if (action === 'BACKGROUND') return; // backup posted by AppState listener
 
       await processAction(
         action,
@@ -431,6 +458,7 @@ export const usePushNotifications = () => {
     });
 
     return () => {
+      appStateListener.remove();
       receivedListener.remove();
       responseListener.remove();
     };
