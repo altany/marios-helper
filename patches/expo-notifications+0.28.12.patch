@@ -1,0 +1,39 @@
+diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.java b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.java
+index 1111111..2222222 100644
+--- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.java
++++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.java
+@@ -1,7 +1,9 @@
+ package expo.modules.notifications.notifications.presentation.builders;
+
+ import android.app.Notification;
++import android.app.PendingIntent;
+ import android.content.Context;
++import android.content.Intent;
+ import android.content.pm.ApplicationInfo;
+ import android.content.pm.PackageManager;
+ import android.content.res.Resources;
+@@ -49,6 +51,24 @@ public class ExpoNotificationBuilder extends ChannelAwareNotificationBuilder {
+     builder.setAutoCancel(content.isAutoDismiss());
+     builder.setOngoing(content.isSticky());
+
++    // When the notification is sticky, attach a delete intent so that if the OEM
++    // allows the user to swipe it away, our BroadcastReceiver immediately re-posts it.
++    if (content.isSticky()) {
++      byte[] requestBytes = marshallNotificationRequest(getNotification().getNotificationRequest());
++      if (requestBytes != null) {
++        int notifId = getNotification().getNotificationRequest().getIdentifier().hashCode();
++        Intent deleteIntent = new Intent("com.altany.marioshelper.NOTIFICATION_DISMISSED");
++        deleteIntent.setPackage(getContext().getPackageName());
++        deleteIntent.putExtra("requestBytes", requestBytes);
++        deleteIntent.putExtra("notificationId", notifId);
++        PendingIntent deletePendingIntent = PendingIntent.getBroadcast(
++          getContext(),
++          notifId,
++          deleteIntent,
++          PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
++        );
++        builder.setDeleteIntent(deletePendingIntent);
++      }
++    }
++
+     builder.setContentTitle(content.getTitle());

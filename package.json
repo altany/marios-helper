@@ -10,13 +10,15 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "eas-build-pre-install": "echo $GOOGLE_SERVICES_JSON && echo $GOOGLE_SERVICES_JSON | base64 --decode > ./google-services.json"
+    "eas-build-pre-install": "echo $GOOGLE_SERVICES_JSON && echo $GOOGLE_SERVICES_JSON | base64 --decode > ./google-services.json",
+    "postinstall": "patch-package"
   },
   "jest": {
     "preset": "jest-expo"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "~1.23.1",
     "@react-navigation/native": "^6.0.2",
     "expo": "~51.0.22",
@@ -47,6 +49,7 @@
     "@types/react-test-renderer": "^18.0.7",
     "jest": "^29.2.1",
     "jest-expo": "~51.0.3",
+    "patch-package": "^8.0.1",
     "react-test-renderer": "18.2.0",
     "typescript": "~5.3.3"
   },
