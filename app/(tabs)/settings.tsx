@@ -493,7 +493,7 @@ const l = StyleSheet.create({
 
   label: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 },
   labelHint: { fontSize: 11, textTransform: 'none', letterSpacing: 0, fontWeight: '400' },
-  sublabel: { fontSize: 12, marginTop: -4 },
+  sublabel: { fontSize: 12, marginTop: 2 },
   inputDisabled: { opacity: 0.4 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
