@@ -1,38 +1,44 @@
 # Mario's Helper 🐕 💊
 
-Meet Mario, my adorable furry friend who needs a bit of extra care! This app was born out of love (and necessity) to help manage Mario's daily medication schedule. As any pet parent knows, keeping track of multiple medications throughout the day can be quite overwhelming. But with Mario's Helper, it's become a breeze!
+Meet Mario, my adorable furry friend who needs a bit of extra care! This app manages Mario's daily medication schedule - multiple eye drops at specific times, with timed chains between them and some painkiller.
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/5eac1eae-370d-4c6e-ae34-c27cc136c2dd" height="600" alt="Mario">
 </div>
-This personal project sends me notifications at specific times during the day to remind me when it's time for Mario's eye drops and ointments. It even makes sure I wait the right amount of time between different medications. No more forgetting or mixing up the schedule - Mario's eyes are happy, and so am I! 🥰
 
-## For Developers 🛠️
+## Features
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+- **Scheduled notifications** - daily reminders at configurable times, with sound and vibration
+- **Medication chains** - after taking one medication, a follow-up notification fires after a configurable delay (e.g. Lacrimmune 20 min after Hylogel)
+- **N-step chains** - chains can have multiple steps, each with its own delay and selectable hours
+- **Per-step hour control** - each chain step only shows the hours that are actually reachable from the previous step
+- **Fully customisable settings** - add/remove medications, adjust times, configure chains, all without touching code
+- **Truly sticky notifications** - notifications cannot be dismissed by swiping; if the OEM allows swipe-dismiss (OnePlus, Samsung etc.), a `BroadcastReceiver` immediately re-posts the full notification including action buttons
+- **In-app modal** - when a notification fires while the app is open, a non-dismissable modal appears instead of the system banner
+- **Snooze** - scrollable picker for snooze duration (5 min – 2 hours)
+- **Schedule summary** - the notifications tab shows a live preview of the full medication schedule
+- **Light/dark mode** — respects the device colour scheme
 
-### Getting Started
+## For Developers
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-
-### Building the App
+### Install dependencies
 
 ```bash
-eas build
+npm install
 ```
 
-More specifically, to create a build for Android using the preview profile:
+This will also apply the `patch-package` patch to expo-notifications automatically via the `postinstall` script.
+
+### Run in development
+
 ```bash
-eas build -p android --profile preview
+npx expo start
 ```
+
+### Build APK (Android)
+
+```bash
+cd android && ./gradlew assembleRelease
+```
+
+Output: `android/app/build/outputs/apk/release/app-release.apk`
