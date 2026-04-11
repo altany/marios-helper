@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, Switch, TouchableOpacity,
   ScrollView, StyleSheet, Modal, Alert, ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
 import {
   getMedicationSettings, saveMedicationSettings,
@@ -15,15 +16,30 @@ const genId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 type ChainForm = { name: string; body: string; delayMinutes: string };
 const emptyChainForm = (): ChainForm => ({ name: '', body: '', delayMinutes: '20' });
 
+const getColors = (scheme: 'light' | 'dark') => ({
+  bg:            scheme === 'dark' ? '#13131f' : '#f2f2f7',
+  card:          scheme === 'dark' ? '#1e1e2e' : '#ffffff',
+  inputBg:       scheme === 'dark' ? '#2a2a3e' : '#f0f2f5',
+  border:        scheme === 'dark' ? '#2a2a3e' : '#e0e0e0',
+  accent:        '#317181',
+  text:          scheme === 'dark' ? '#cdd6f4' : '#11181C',
+  textSecondary: scheme === 'dark' ? '#a6adc8' : '#687076',
+  textMuted:     scheme === 'dark' ? '#585b70' : '#9BA1A6',
+  placeholder:   scheme === 'dark' ? '#555'    : '#aaa',
+  overlay:       'rgba(0,0,0,0.65)',
+});
+
 export default function SettingsScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const c = getColors(scheme);
+
   const [settings, setSettings] = useState<MedicationSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [addHourFor, setAddHourFor] = useState<string | null>(null);
 
-  // { medId, stepIndex: null = new step, number = edit existing }
-  const [chainModal, setChainModal] = useState<{ medId: string; stepIndex: number | null } | null>(null);
+  const [chainModal, setChainModal] = useState<{ medId: string } | null>(null);
   const [chainForm, setChainForm] = useState<ChainForm>(emptyChainForm());
 
   const [newMedModal, setNewMedModal] = useState(false);
@@ -95,10 +111,24 @@ export default function SettingsScreen() {
       return { ...m, chainAtHours: updated };
     }));
 
+  const toggleChainStepHour = (medId: string, stepIndex: number, hour: number) =>
+    setSettings(prev => prev.map(m => {
+      if (m.id !== medId) return m;
+      const chain = (m.chain ?? []).map((step, i) => {
+        if (i !== stepIndex) return step;
+        const cur = step.chainAtHours ?? [];
+        const updated = cur.includes(hour)
+          ? cur.filter(h => h !== hour)
+          : [...cur, hour].sort((a, b) => a - b);
+        return { ...step, chainAtHours: updated };
+      });
+      return { ...m, chain };
+    }));
+
   // ── Chain step mutations ──────────────────────────────────────────
 
   const openAddStep = (medId: string) => {
-    setChainModal({ medId, stepIndex: null });
+    setChainModal({ medId });
     setChainForm(emptyChainForm());
   };
 
@@ -117,20 +147,6 @@ export default function SettingsScreen() {
     }));
     setChainModal(null);
   };
-
-  const toggleChainStepHour = (medId: string, stepIndex: number, hour: number) =>
-    setSettings(prev => prev.map(m => {
-      if (m.id !== medId) return m;
-      const chain = (m.chain ?? []).map((step, i) => {
-        if (i !== stepIndex) return step;
-        const cur = step.chainAtHours ?? [];
-        const updated = cur.includes(hour)
-          ? cur.filter(h => h !== hour)
-          : [...cur, hour].sort((a, b) => a - b);
-        return { ...step, chainAtHours: updated };
-      });
-      return { ...m, chain };
-    }));
 
   const updateChainStep = (medId: string, stepIndex: number, field: keyof ChainStep, value: string) =>
     setSettings(prev => prev.map(m => {
@@ -179,8 +195,8 @@ export default function SettingsScreen() {
 
   if (loading) {
     return (
-      <View style={[s.container, s.centered]}>
-        <ActivityIndicator color="#317181" size="large" />
+      <View style={[l.fill, l.centered, { backgroundColor: c.bg }]}>
+        <ActivityIndicator color={c.accent} size="large" />
       </View>
     );
   }
@@ -191,91 +207,89 @@ export default function SettingsScreen() {
     : [];
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={s.content}>
-      <Text style={s.pageTitle}>Ρυθμίσεις φαρμάκων</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={l.content}>
+      <Text style={[l.pageTitle, { color: c.text }]}>Ρυθμίσεις φαρμάκων</Text>
 
       {settings.map(med => (
-        <View key={med.id} style={s.card}>
+        <View key={med.id} style={[l.card, { backgroundColor: c.card }]}>
 
           {/* ── Group title + controls ── */}
-          <View style={s.cardHeader}>
+          <View style={l.cardHeader}>
             <TextInput
-              style={s.groupTitleInput}
+              style={[l.groupTitleInput, { backgroundColor: c.inputBg, color: c.text }]}
               value={med.groupTitle ?? ''}
               onChangeText={v => updateField(med.id, 'groupTitle', v)}
               placeholder="Τίτλος ομάδας"
-              placeholderTextColor="#555"
+              placeholderTextColor={c.placeholder}
             />
             <Switch
               value={med.enabled}
               onValueChange={() => toggleEnabled(med.id)}
-              trackColor={{ false: '#444', true: '#317181' }}
+              trackColor={{ false: c.border, true: c.accent }}
               thumbColor="#fff"
             />
             <TouchableOpacity onPress={() => removeMed(med.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={s.deleteIcon}>🗑</Text>
+              <Text style={[l.deleteIcon, { color: c.textMuted }]}>🗑</Text>
             </TouchableOpacity>
           </View>
 
           {/* ── Times ── */}
-          <Text style={s.label}>Ώρες</Text>
-          <View style={s.chipRow}>
+          <Text style={[l.label, { color: c.textSecondary }]}>Ώρες</Text>
+          <View style={l.chipRow}>
             {med.times.map(hour => (
-              <View key={hour} style={s.chip}>
-                <Text style={s.chipText}>{formatHour(hour)}</Text>
+              <View key={hour} style={[l.chip, { backgroundColor: c.accent }]}>
+                <Text style={l.chipText}>{formatHour(hour)}</Text>
                 <TouchableOpacity onPress={() => removeTime(med.id, hour)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={s.chipRemove}>×</Text>
+                  <Text style={l.chipRemove}>×</Text>
                 </TouchableOpacity>
               </View>
             ))}
             {med.enabled && (
-              <TouchableOpacity style={s.addChip} onPress={() => setAddHourFor(med.id)}>
-                <Text style={s.addChipText}>+ Ώρα</Text>
+              <TouchableOpacity style={[l.addChip, { borderColor: c.accent }]} onPress={() => setAddHourFor(med.id)}>
+                <Text style={[l.addChipText, { color: c.accent }]}>+ Ώρα</Text>
               </TouchableOpacity>
             )}
           </View>
 
           {/* ── Chain: all steps with equal styling ── */}
-          <Text style={s.label}>
-            Φάρμακα <Text style={s.labelHint}>(αλυσίδα)</Text>
+          <Text style={[l.label, { color: c.textSecondary }]}>
+            Φάρμακα <Text style={[l.labelHint, { color: c.textMuted }]}>(αλυσίδα)</Text>
           </Text>
 
-          {/* First step = the medication itself */}
-          <View style={s.medStep}>
+          {/* Root medication */}
+          <View style={[l.medStep, { backgroundColor: c.inputBg }]}>
             <TextInput
-              style={s.stepNameInput}
+              style={[l.stepNameInput, { backgroundColor: c.card, color: c.text }]}
               value={med.name}
               onChangeText={v => updateField(med.id, 'name', v)}
               placeholder="Όνομα φαρμάκου"
-              placeholderTextColor="#555"
+              placeholderTextColor={c.placeholder}
             />
             <TextInput
-              style={[s.stepBodyInput, !med.enabled && s.inputDisabled]}
+              style={[l.stepBodyInput, { backgroundColor: c.card, color: c.textSecondary }, !med.enabled && l.inputDisabled]}
               value={med.body}
               onChangeText={v => updateField(med.id, 'body', v)}
               multiline
               editable={med.enabled}
               placeholder="Δόση / κείμενο ειδοποίησης"
-              placeholderTextColor="#555"
+              placeholderTextColor={c.placeholder}
             />
           </View>
 
-          {/* Chain hour selector — only if chain steps exist */}
+          {/* Chain hour selector for root */}
           {(med.chain?.length ?? 0) > 0 && med.times.length > 0 && (
             <>
-              <Text style={s.sublabel}>Αλυσίδα ενεργή στις:</Text>
-              <View style={s.chipRow}>
+              <Text style={[l.sublabel, { color: c.textMuted }]}>Αλυσίδα ενεργή στις:</Text>
+              <View style={l.chipRow}>
                 {med.times.map(hour => {
                   const active = med.chainAtHours?.includes(hour) ?? false;
                   return (
                     <TouchableOpacity
                       key={hour}
-                      style={[s.chip, active ? s.chipChainOn : s.chipChainOff]}
+                      style={[l.chip, active ? { backgroundColor: c.accent } : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.accent }]}
                       onPress={() => toggleChainHour(med.id, hour)}
                     >
-                      <Text style={[s.chipText, !active && s.chipTextOff]}>
-                        {formatHour(hour)}
-                      </Text>
+                      <Text style={[l.chipText, !active && { color: c.accent }]}>{formatHour(hour)}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -283,62 +297,57 @@ export default function SettingsScreen() {
             </>
           )}
 
-          {/* Subsequent chain steps — identical presentation to the first */}
+          {/* Chain steps */}
           {(med.chain ?? []).map((step, idx) => (
             <View key={step.id}>
-              <View style={s.chainConnector}>
-                <View style={s.chainLine} />
+              <View style={l.chainConnector}>
+                <View style={[l.chainLine, { backgroundColor: c.border }]} />
                 <TextInput
-                  style={s.chainDelayInput}
+                  style={[l.chainDelayInput, { backgroundColor: c.inputBg, color: c.textSecondary }]}
                   value={String(step.delayMinutes)}
                   onChangeText={v => updateChainStep(med.id, idx, 'delayMinutes', v.replace(/[^0-9]/g, ''))}
                   keyboardType="number-pad"
                   selectTextOnFocus
                 />
-                <Text style={s.chainDelaySuffix}>λεπτά</Text>
-                <View style={s.chainLine} />
-                <TouchableOpacity
-                  onPress={() => removeChainStep(med.id, idx)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Text style={s.chainStepRemove}>×</Text>
+                <Text style={[l.chainDelaySuffix, { color: c.textMuted }]}>λεπτά</Text>
+                <View style={[l.chainLine, { backgroundColor: c.border }]} />
+                <TouchableOpacity onPress={() => removeChainStep(med.id, idx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={[l.chainStepRemove, { color: c.textMuted }]}>×</Text>
                 </TouchableOpacity>
               </View>
-              <View style={s.medStep}>
+
+              <View style={[l.medStep, { backgroundColor: c.inputBg }]}>
                 <TextInput
-                  style={s.stepNameInput}
+                  style={[l.stepNameInput, { backgroundColor: c.card, color: c.text }]}
                   value={step.name}
                   onChangeText={v => updateChainStep(med.id, idx, 'name', v)}
                   placeholder="Όνομα φαρμάκου"
-                  placeholderTextColor="#555"
+                  placeholderTextColor={c.placeholder}
                 />
                 <TextInput
-                  style={s.stepBodyInput}
+                  style={[l.stepBodyInput, { backgroundColor: c.card, color: c.textSecondary }]}
                   value={step.body}
                   onChangeText={v => updateChainStep(med.id, idx, 'body', v)}
                   multiline
                   placeholder="Δόση / κείμενο ειδοποίησης"
-                  placeholderTextColor="#555"
+                  placeholderTextColor={c.placeholder}
                 />
               </View>
 
-              {/* Chain hour selector for this step — only if there's a next step */}
+              {/* Per-step chain hours (only if there's a next step) */}
               {idx < (med.chain?.length ?? 0) - 1 && med.times.length > 0 && (
                 <>
-                  <Text style={s.sublabel}>Αλυσίδα ενεργή στις:</Text>
-                  <View style={s.chipRow}>
+                  <Text style={[l.sublabel, { color: c.textMuted }]}>Αλυσίδα ενεργή στις:</Text>
+                  <View style={l.chipRow}>
                     {med.times.map(hour => {
-                      // undefined chainAtHours = active at all hours
                       const active = step.chainAtHours == null || step.chainAtHours.includes(hour);
                       return (
                         <TouchableOpacity
                           key={hour}
-                          style={[s.chip, active ? s.chipChainOn : s.chipChainOff]}
+                          style={[l.chip, active ? { backgroundColor: c.accent } : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.accent }]}
                           onPress={() => toggleChainStepHour(med.id, idx, hour)}
                         >
-                          <Text style={[s.chipText, !active && s.chipTextOff]}>
-                            {formatHour(hour)}
-                          </Text>
+                          <Text style={[l.chipText, !active && { color: c.accent }]}>{formatHour(hour)}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -348,44 +357,43 @@ export default function SettingsScreen() {
             </View>
           ))}
 
-          <TouchableOpacity style={s.addStepBtn} onPress={() => openAddStep(med.id)}>
-            <Text style={s.addStepBtnText}>+ Βήμα αλυσίδας</Text>
+          <TouchableOpacity style={[l.addStepBtn, { borderColor: c.border }]} onPress={() => openAddStep(med.id)}>
+            <Text style={[l.addStepBtnText, { color: c.textMuted }]}>+ Βήμα αλυσίδας</Text>
           </TouchableOpacity>
 
         </View>
       ))}
 
-      {/* ── Add new medication ── */}
-      <TouchableOpacity style={s.addMedBtn} onPress={() => setNewMedModal(true)}>
-        <Text style={s.addMedBtnText}>+ Νέο φάρμακο</Text>
+      <TouchableOpacity style={[l.addMedBtn, { borderColor: c.accent }]} onPress={() => setNewMedModal(true)}>
+        <Text style={[l.addMedBtnText, { color: c.accent }]}>+ Νέο φάρμακο</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={s.resetBtn} onPress={resetToDefaults}>
-        <Text style={s.resetBtnText}>Επαναφορά προεπιλογών</Text>
+      <TouchableOpacity style={l.resetBtn} onPress={resetToDefaults}>
+        <Text style={[l.resetBtnText, { color: c.textMuted }]}>Επαναφορά προεπιλογών</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[s.saveBtn, saving && s.saveBtnDisabled]}
+        style={[l.saveBtn, { backgroundColor: c.accent }, saving && l.saveBtnDisabled]}
         onPress={save}
         disabled={saving}
       >
-        <Text style={s.saveBtnText}>{saving ? 'Αποθήκευση...' : 'Αποθήκευση & Εφαρμογή'}</Text>
+        <Text style={l.saveBtnText}>{saving ? 'Αποθήκευση...' : 'Αποθήκευση & Εφαρμογή'}</Text>
       </TouchableOpacity>
 
       {/* ── Hour picker modal ── */}
       <Modal visible={!!addHourFor} transparent animationType="fade" onRequestClose={() => setAddHourFor(null)}>
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
-            <Text style={s.modalTitle}>Επιλογή ώρας</Text>
+        <View style={[l.overlay, { backgroundColor: c.overlay }]}>
+          <View style={[l.modalBox, { backgroundColor: c.card }]}>
+            <Text style={[l.modalTitle, { color: c.text }]}>Επιλογή ώρας</Text>
             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
               {availableHours.map(hour => (
-                <TouchableOpacity key={hour} style={s.hourRow} onPress={() => addHourFor && addTime(addHourFor, hour)}>
-                  <Text style={s.hourRowText}>{formatHour(hour)}</Text>
+                <TouchableOpacity key={hour} style={[l.hourRow, { borderBottomColor: c.border }]} onPress={() => addHourFor && addTime(addHourFor, hour)}>
+                  <Text style={[l.hourRowText, { color: c.text }]}>{formatHour(hour)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity style={s.cancelBtn} onPress={() => setAddHourFor(null)}>
-              <Text style={s.cancelBtnText}>Άκυρο</Text>
+            <TouchableOpacity style={l.cancelBtn} onPress={() => setAddHourFor(null)}>
+              <Text style={[l.cancelBtnText, { color: c.textMuted }]}>Άκυρο</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -393,44 +401,44 @@ export default function SettingsScreen() {
 
       {/* ── Chain step add modal ── */}
       <Modal visible={!!chainModal} transparent animationType="fade" onRequestClose={() => setChainModal(null)}>
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
-            <Text style={s.modalTitle}>Νέο βήμα αλυσίδας</Text>
+        <View style={[l.overlay, { backgroundColor: c.overlay }]}>
+          <View style={[l.modalBox, { backgroundColor: c.card }]}>
+            <Text style={[l.modalTitle, { color: c.text }]}>Νέο βήμα αλυσίδας</Text>
 
-            <Text style={s.formLabel}>Όνομα φαρμάκου</Text>
+            <Text style={[l.formLabel, { color: c.textSecondary }]}>Όνομα φαρμάκου</Text>
             <TextInput
-              style={s.formInput}
+              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text }]}
               value={chainForm.name}
               onChangeText={v => setChainForm(f => ({ ...f, name: v }))}
               placeholder="π.χ. Lacrimmune"
-              placeholderTextColor="#555"
+              placeholderTextColor={c.placeholder}
               autoFocus
             />
 
-            <Text style={s.formLabel}>Δόση / κείμενο ειδοποίησης</Text>
+            <Text style={[l.formLabel, { color: c.textSecondary }]}>Δόση / κείμενο ειδοποίησης</Text>
             <TextInput
-              style={[s.formInput, { minHeight: 64 }]}
+              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text, minHeight: 64 }]}
               value={chainForm.body}
               onChangeText={v => setChainForm(f => ({ ...f, body: v }))}
               placeholder="π.χ. 1 κόκκος ρυζιού στο αριστερό μάτι"
-              placeholderTextColor="#555"
+              placeholderTextColor={c.placeholder}
               multiline
             />
 
-            <Text style={s.formLabel}>Καθυστέρηση (λεπτά μετά το προηγούμενο)</Text>
+            <Text style={[l.formLabel, { color: c.textSecondary }]}>Καθυστέρηση (λεπτά μετά το προηγούμενο)</Text>
             <TextInput
-              style={s.formInput}
+              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text }]}
               value={chainForm.delayMinutes}
               onChangeText={v => setChainForm(f => ({ ...f, delayMinutes: v.replace(/[^0-9]/g, '') }))}
               keyboardType="number-pad"
             />
 
-            <View style={s.modalBtnRow}>
-              <TouchableOpacity style={[s.modalBtn, s.modalBtnSecondary]} onPress={() => setChainModal(null)}>
-                <Text style={s.cancelBtnText}>Άκυρο</Text>
+            <View style={l.modalBtnRow}>
+              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.inputBg }]} onPress={() => setChainModal(null)}>
+                <Text style={[l.cancelBtnText, { color: c.textMuted }]}>Άκυρο</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, s.modalBtnPrimary]} onPress={saveChainStep}>
-                <Text style={s.saveBtnText}>Αποθήκευση</Text>
+              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.accent }]} onPress={saveChainStep}>
+                <Text style={l.saveBtnText}>Αποθήκευση</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -439,36 +447,36 @@ export default function SettingsScreen() {
 
       {/* ── New medication modal ── */}
       <Modal visible={newMedModal} transparent animationType="fade" onRequestClose={() => setNewMedModal(false)}>
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
-            <Text style={s.modalTitle}>Νέο φάρμακο</Text>
+        <View style={[l.overlay, { backgroundColor: c.overlay }]}>
+          <View style={[l.modalBox, { backgroundColor: c.card }]}>
+            <Text style={[l.modalTitle, { color: c.text }]}>Νέο φάρμακο</Text>
 
-            <Text style={s.formLabel}>Όνομα</Text>
+            <Text style={[l.formLabel, { color: c.textSecondary }]}>Όνομα</Text>
             <TextInput
-              style={s.formInput}
+              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text }]}
               value={newMedForm.name}
               onChangeText={v => setNewMedForm(f => ({ ...f, name: v }))}
               placeholder="π.χ. Αντιβίωση"
-              placeholderTextColor="#555"
+              placeholderTextColor={c.placeholder}
               autoFocus
             />
 
-            <Text style={s.formLabel}>Δόση / κείμενο ειδοποίησης</Text>
+            <Text style={[l.formLabel, { color: c.textSecondary }]}>Δόση / κείμενο ειδοποίησης</Text>
             <TextInput
-              style={[s.formInput, { minHeight: 64 }]}
+              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text, minHeight: 64 }]}
               value={newMedForm.body}
               onChangeText={v => setNewMedForm(f => ({ ...f, body: v }))}
               placeholder="π.χ. 1 δισκίο με νερό"
-              placeholderTextColor="#555"
+              placeholderTextColor={c.placeholder}
               multiline
             />
 
-            <View style={s.modalBtnRow}>
-              <TouchableOpacity style={[s.modalBtn, s.modalBtnSecondary]} onPress={() => setNewMedModal(false)}>
-                <Text style={s.cancelBtnText}>Άκυρο</Text>
+            <View style={l.modalBtnRow}>
+              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.inputBg }]} onPress={() => setNewMedModal(false)}>
+                <Text style={[l.cancelBtnText, { color: c.textMuted }]}>Άκυρο</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, s.modalBtnPrimary]} onPress={confirmAddMed}>
-                <Text style={s.saveBtnText}>Προσθήκη</Text>
+              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.accent }]} onPress={confirmAddMed}>
+                <Text style={l.saveBtnText}>Προσθήκη</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -479,222 +487,65 @@ export default function SettingsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#13131f' },
+// Layout-only styles (no colors). Colors applied inline via `c`.
+const l = StyleSheet.create({
+  fill: { flex: 1 },
   centered: { justifyContent: 'center', alignItems: 'center' },
   content: { padding: 16, paddingBottom: 48 },
 
-  pageTitle: {
-    color: '#cdd6f4',
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 20,
-    marginTop: 8,
-  },
+  pageTitle: { fontSize: 22, fontWeight: '700', marginBottom: 20, marginTop: 8 },
 
-  // ── Card ──
-  card: {
-    backgroundColor: '#1e1e2e',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    gap: 10,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  card: { borderRadius: 12, padding: 16, marginBottom: 16, gap: 10 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   groupTitleInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    backgroundColor: '#2a2a3e',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    flex: 1, fontSize: 17, fontWeight: '700',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
   deleteIcon: { fontSize: 18, marginLeft: 4 },
 
-  // ── Labels ──
-  label: {
-    color: '#a6adc8',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 4,
-  },
-  labelHint: {
-    color: '#585b70',
-    fontSize: 11,
-    textTransform: 'none',
-    letterSpacing: 0,
-    fontWeight: '400',
-  },
-  sublabel: {
-    color: '#585b70',
-    fontSize: 12,
-    marginTop: -4,
-  },
-
+  label: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 },
+  labelHint: { fontSize: 11, textTransform: 'none', letterSpacing: 0, fontWeight: '400' },
+  sublabel: { fontSize: 12, marginTop: -4 },
   inputDisabled: { opacity: 0.4 },
 
-  // ── Chips ──
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#317181',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 6,
-  },
-  chipChainOn: { backgroundColor: '#317181' },
-  chipChainOff: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#317181' },
+  chip: { flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, gap: 6 },
   chipText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  chipTextOff: { color: '#317181' },
   chipRemove: { color: '#ffffffcc', fontSize: 18, lineHeight: 18 },
-  addChip: {
-    backgroundColor: 'transparent',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#317181',
-  },
-  addChipText: { color: '#317181', fontSize: 14, fontWeight: '600' },
+  addChip: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  addChipText: { fontSize: 14, fontWeight: '600' },
 
-  // ── Med step (equal styling for all steps in the chain) ──
-  medStep: {
-    backgroundColor: '#2a2a3e',
-    borderRadius: 10,
-    padding: 12,
-    gap: 8,
-  },
-  stepNameInput: {
-    color: '#cdd6f4',
-    fontSize: 15,
-    fontWeight: '600',
-    backgroundColor: '#1e1e2e',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  stepBodyInput: {
-    color: '#a6adc8',
-    fontSize: 14,
-    backgroundColor: '#1e1e2e',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    minHeight: 52,
-  },
-  chainStepRemove: { color: '#585b70', fontSize: 22, lineHeight: 24 },
+  medStep: { borderRadius: 10, padding: 12, gap: 8 },
+  stepNameInput: { fontSize: 15, fontWeight: '600', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  stepBodyInput: { fontSize: 14, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, minHeight: 52 },
 
-  // ── Chain connector ──
-  chainConnector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginVertical: 2,
-  },
-  chainLine: { flex: 1, height: 1, backgroundColor: '#2a2a3e' },
-  chainDelayInput: {
-    color: '#a6adc8',
-    fontSize: 13,
-    backgroundColor: '#2a2a3e',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    minWidth: 36,
-    textAlign: 'center',
-  },
-  chainDelaySuffix: { color: '#585b70', fontSize: 12 },
+  chainConnector: { flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 2 },
+  chainLine: { flex: 1, height: 1 },
+  chainDelayInput: { fontSize: 13, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, minWidth: 36, textAlign: 'center' },
+  chainDelaySuffix: { fontSize: 12 },
+  chainStepRemove: { fontSize: 22, lineHeight: 24 },
 
-  addStepBtn: {
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a3e',
-    borderStyle: 'dashed',
-    marginTop: 2,
-  },
-  addStepBtnText: { color: '#585b70', fontSize: 13 },
+  addStepBtn: { borderRadius: 8, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', marginTop: 2 },
+  addStepBtnText: { fontSize: 13 },
 
-  // ── Add medication button ──
-  addMedBtn: {
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#317181',
-    marginBottom: 8,
-  },
-  addMedBtnText: { color: '#317181', fontSize: 15, fontWeight: '600' },
+  addMedBtn: { borderRadius: 10, padding: 14, alignItems: 'center', borderWidth: 1, marginBottom: 8 },
+  addMedBtnText: { fontSize: 15, fontWeight: '600' },
 
-  // ── Bottom buttons ──
   resetBtn: { alignSelf: 'center', padding: 10, marginVertical: 4 },
-  resetBtnText: { color: '#585b70', fontSize: 13 },
-  saveBtn: {
-    backgroundColor: '#317181',
-    borderRadius: 10,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
+  resetBtnText: { fontSize: 13 },
+  saveBtn: { borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 8 },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // ── Modals ──
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    backgroundColor: '#1e1e2e',
-    borderRadius: 12,
-    padding: 20,
-    width: '88%',
-    maxHeight: '85%',
-  },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-  hourRow: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a3e',
-  },
-  hourRowText: { color: '#cdd6f4', fontSize: 16, textAlign: 'center' },
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalBox: { borderRadius: 12, padding: 20, width: '88%', maxHeight: '85%' },
+  modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: 14, textAlign: 'center' },
+  hourRow: { paddingVertical: 14, borderBottomWidth: 1 },
+  hourRowText: { fontSize: 16, textAlign: 'center' },
   cancelBtn: { marginTop: 12, alignItems: 'center', padding: 8 },
-  cancelBtnText: { color: '#585b70', fontSize: 15 },
-
-  formLabel: {
-    color: '#a6adc8',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  formInput: {
-    backgroundColor: '#2a2a3e',
-    color: '#cdd6f4',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-  },
+  cancelBtnText: { fontSize: 15 },
+  formLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 4 },
+  formInput: { borderRadius: 8, padding: 10, fontSize: 14 },
   modalBtnRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   modalBtn: { flex: 1, borderRadius: 8, padding: 12, alignItems: 'center' },
-  modalBtnPrimary: { backgroundColor: '#317181' },
-  modalBtnSecondary: { backgroundColor: '#2a2a3e' },
 });

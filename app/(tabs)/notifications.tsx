@@ -81,11 +81,13 @@ export default function Notification() {
 
 const styles = StyleSheet.create({
   notificationsList: {
-    backgroundColor: '#317181',
     marginTop: 10,
     marginBottom: 10,
     padding: 10,
     gap: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#317181',
   },
   headerImage: {
     color: '#808080',

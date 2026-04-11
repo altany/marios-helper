@@ -66,7 +66,9 @@ const styles = StyleSheet.create({
     paddingBottom: 20
   },
   notification: {
-    backgroundColor: '#317181',
+    borderWidth: 1,
+    borderColor: '#317181',
+    borderRadius: 8,
     marginTop:10,
     marginBottom:10,
     padding:10,

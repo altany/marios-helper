@@ -1,5 +1,3 @@
-
-
 import { Tabs } from 'expo-router';
 import React from 'react';
 
@@ -12,24 +10,17 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      initialRouteName="notifications"
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Οδηγίες',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} />
-          ),
-        }}
-      />
+      }}
+    >
       <Tabs.Screen
         name="notifications"
         options={{
           title: 'Ειδοποιήσεις',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'code-slash' : 'code-slash-outline'} color={color} />
+            <TabBarIcon name={focused ? 'notifications' : 'notifications-outline'} color={color} />
           ),
         }}
       />
@@ -39,6 +30,15 @@ export default function TabLayout() {
           title: 'Ρυθμίσεις',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon name={focused ? 'settings' : 'settings-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Οδηγίες',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'document-text' : 'document-text-outline'} color={color} />
           ),
         }}
       />
