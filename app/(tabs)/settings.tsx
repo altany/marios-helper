@@ -41,7 +41,7 @@ export default function SettingsScreen() {
   const toggleEnabled = (id: string) =>
     setSettings(prev => prev.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m));
 
-  const updateField = (id: string, field: 'name' | 'body', value: string) =>
+  const updateField = (id: string, field: 'name' | 'body' | 'groupTitle', value: string) =>
     setSettings(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
 
   const removeMed = (id: string) =>
@@ -182,13 +182,13 @@ export default function SettingsScreen() {
       {settings.map(med => (
         <View key={med.id} style={s.card}>
 
-          {/* ── Header: name + toggle + delete ── */}
+          {/* ── Group title + controls ── */}
           <View style={s.cardHeader}>
             <TextInput
-              style={s.nameInput}
-              value={med.name}
-              onChangeText={v => updateField(med.id, 'name', v)}
-              placeholder="Όνομα φαρμάκου"
+              style={s.groupTitleInput}
+              value={med.groupTitle ?? ''}
+              onChangeText={v => updateField(med.id, 'groupTitle', v)}
+              placeholder="Τίτλος ομάδας"
               placeholderTextColor="#555"
             />
             <Switch
@@ -201,17 +201,6 @@ export default function SettingsScreen() {
               <Text style={s.deleteIcon}>🗑</Text>
             </TouchableOpacity>
           </View>
-
-          {/* ── Dose text ── */}
-          <Text style={s.label}>Δόση / κείμενο ειδοποίησης</Text>
-          <TextInput
-            style={[s.input, !med.enabled && s.inputDisabled]}
-            value={med.body}
-            onChangeText={v => updateField(med.id, 'body', v)}
-            multiline
-            editable={med.enabled}
-            placeholderTextColor="#555"
-          />
 
           {/* ── Times ── */}
           <Text style={s.label}>Ώρες</Text>
@@ -231,12 +220,35 @@ export default function SettingsScreen() {
             )}
           </View>
 
-          {/* ── Chain section ── */}
-          <Text style={s.label}>Αλυσίδα <Text style={s.labelHint}>(μετά το "Το έδωσα")</Text></Text>
+          {/* ── Chain: all steps with equal styling ── */}
+          <Text style={s.label}>
+            Φάρμακα <Text style={s.labelHint}>(αλυσίδα)</Text>
+          </Text>
 
+          {/* First step = the medication itself */}
+          <View style={s.medStep}>
+            <TextInput
+              style={s.stepNameInput}
+              value={med.name}
+              onChangeText={v => updateField(med.id, 'name', v)}
+              placeholder="Όνομα φαρμάκου"
+              placeholderTextColor="#555"
+            />
+            <TextInput
+              style={[s.stepBodyInput, !med.enabled && s.inputDisabled]}
+              value={med.body}
+              onChangeText={v => updateField(med.id, 'body', v)}
+              multiline
+              editable={med.enabled}
+              placeholder="Δόση / κείμενο ειδοποίησης"
+              placeholderTextColor="#555"
+            />
+          </View>
+
+          {/* Chain hour selector — only if chain steps exist */}
           {(med.chain?.length ?? 0) > 0 && med.times.length > 0 && (
             <>
-              <Text style={s.sublabel}>Ενεργή στις ώρες:</Text>
+              <Text style={s.sublabel}>Αλυσίδα ενεργή στις:</Text>
               <View style={s.chipRow}>
                 {med.times.map(hour => {
                   const active = med.chainAtHours?.includes(hour) ?? false;
@@ -256,30 +268,34 @@ export default function SettingsScreen() {
             </>
           )}
 
+          {/* Subsequent chain steps — same styling as the first */}
           {(med.chain ?? []).map((step, idx) => (
-            <TouchableOpacity
-              key={step.id}
-              style={s.chainStep}
-              onPress={() => openEditStep(med.id, idx, step)}
-              activeOpacity={0.7}
-            >
-              <View style={s.chainStepIndex}>
-                <Text style={s.chainStepIndexText}>{idx + 1}</Text>
-              </View>
-              <View style={s.chainStepContent}>
-                <Text style={s.chainStepName}>{step.name || '—'}</Text>
-                {!!step.body && (
-                  <Text style={s.chainStepDose} numberOfLines={1}>{step.body}</Text>
-                )}
-                <Text style={s.chainStepDelay}>+{step.delayMinutes} λεπτά μετά το προηγούμενο</Text>
+            <View key={step.id}>
+              <View style={s.chainConnector}>
+                <View style={s.chainLine} />
+                <Text style={s.chainDelay}>+{step.delayMinutes} λεπτά</Text>
+                <View style={s.chainLine} />
               </View>
               <TouchableOpacity
-                onPress={() => removeChainStep(med.id, idx)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={s.medStep}
+                onPress={() => openEditStep(med.id, idx, step)}
+                activeOpacity={0.75}
               >
-                <Text style={s.chainStepRemove}>×</Text>
+                <View style={s.stepRow}>
+                  <Text style={s.stepNameStatic}>{step.name || '—'}</Text>
+                  <TouchableOpacity
+                    onPress={() => removeChainStep(med.id, idx)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Text style={s.chainStepRemove}>×</Text>
+                  </TouchableOpacity>
+                </View>
+                {!!step.body && (
+                  <Text style={s.stepBodyStatic} numberOfLines={2}>{step.body}</Text>
+                )}
+                <Text style={s.tapToEdit}>Πάτα για επεξεργασία</Text>
               </TouchableOpacity>
-            </TouchableOpacity>
+            </View>
           ))}
 
           <TouchableOpacity style={s.addStepBtn} onPress={() => openAddStep(med.id)}>
@@ -441,10 +457,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  nameInput: {
+  groupTitleInput: {
     flex: 1,
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     backgroundColor: '#2a2a3e',
     borderRadius: 8,
@@ -474,15 +490,6 @@ const s = StyleSheet.create({
     marginTop: -4,
   },
 
-  // ── Input ──
-  input: {
-    backgroundColor: '#2a2a3e',
-    color: '#cdd6f4',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-    minHeight: 52,
-  },
   inputDisabled: { opacity: 0.4 },
 
   // ── Chips ──
@@ -511,30 +518,62 @@ const s = StyleSheet.create({
   },
   addChipText: { color: '#317181', fontSize: 14, fontWeight: '600' },
 
-  // ── Chain steps ──
-  chainStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  // ── Med step (equal styling for all steps in the chain) ──
+  medStep: {
     backgroundColor: '#2a2a3e',
     borderRadius: 10,
     padding: 12,
-    gap: 10,
+    gap: 8,
   },
-  chainStepIndex: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#317181',
+  stepNameInput: {
+    color: '#cdd6f4',
+    fontSize: 15,
+    fontWeight: '600',
+    backgroundColor: '#1e1e2e',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  stepBodyInput: {
+    color: '#a6adc8',
+    fontSize: 14,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minHeight: 52,
+  },
+  stepRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
+    justifyContent: 'space-between',
   },
-  chainStepIndexText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  chainStepContent: { flex: 1, gap: 2 },
-  chainStepName: { color: '#cdd6f4', fontSize: 14, fontWeight: '600' },
-  chainStepDose: { color: '#a6adc8', fontSize: 12 },
-  chainStepDelay: { color: '#585b70', fontSize: 11, marginTop: 2 },
-  chainStepRemove: { color: '#585b70', fontSize: 22, lineHeight: 24, marginTop: -2 },
+  stepNameStatic: {
+    color: '#cdd6f4',
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  stepBodyStatic: {
+    color: '#a6adc8',
+    fontSize: 14,
+  },
+  tapToEdit: {
+    color: '#44475a',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  chainStepRemove: { color: '#585b70', fontSize: 22, lineHeight: 24 },
+
+  // ── Chain connector ──
+  chainConnector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 2,
+  },
+  chainLine: { flex: 1, height: 1, backgroundColor: '#2a2a3e' },
+  chainDelay: { color: '#585b70', fontSize: 12 },
 
   addStepBtn: {
     borderRadius: 8,
@@ -543,6 +582,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a3e',
     borderStyle: 'dashed',
+    marginTop: 2,
   },
   addStepBtnText: { color: '#585b70', fontSize: 13 },
 

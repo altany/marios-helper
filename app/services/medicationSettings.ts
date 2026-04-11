@@ -9,9 +9,10 @@ export type ChainStep = {
 
 export type MedicationSchedule = {
   id: string;
+  groupTitle?: string;     // display label for the whole chain group
   name: string;
   body: string;
-  times: number[];     // scheduled hours (0–23)
+  times: number[];         // scheduled hours (0–23)
   enabled: boolean;
   chainAtHours?: number[]; // hours at which "Το έδωσα" triggers the chain
   chain?: ChainStep[];     // ordered list of follow-up medications
@@ -23,6 +24,7 @@ const SETTINGS_KEY = 'medication_settings_v2';
 export const DEFAULT_SETTINGS: MedicationSchedule[] = [
   {
     id: 'hylogel',
+    groupTitle: 'Μάτια',
     name: 'Hylogel',
     body: 'Σταγόνες Hylogel - 1 σε κάθε μάτι',
     times: [9, 15, 21],
@@ -39,6 +41,7 @@ export const DEFAULT_SETTINGS: MedicationSchedule[] = [
   },
   {
     id: 'depon',
+    groupTitle: 'Παυσίπονο',
     name: 'Depon',
     body: 'Depon - 1/4 του δισκίου',
     times: [9, 15, 21],
