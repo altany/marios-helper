@@ -43,7 +43,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="index"
+        name="instructions"
         options={{
           title: 'Οδηγίες',
           tabBarIcon: ({ color, focused }) => (
