@@ -3,19 +3,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getMedicationSettings, DEFAULT_SETTINGS } from './medicationSettings';
+import { getMedicationSettings, DEFAULT_SETTINGS, ChainStep } from './medicationSettings';
 
 // Tracks the last notification identifier processed, to prevent double-handling
 // when both getLastNotificationResponseAsync and the response listener fire.
 const HANDLED_NOTIFICATION_KEY = 'lastHandledNotificationId';
-
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     // Suppress the system banner when the app is in the foreground — the
     // in-app modal is shown instead via addNotificationReceivedListener,
     // which cannot be swiped away. Show the banner only when backgrounded.
-    shouldShowAlert: AppState.currentState !== 'active',
+    shouldShowAlert: false,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -71,7 +70,8 @@ export const scheduleMedicationReminders = async () => {
       );
       if (alreadyScheduled) continue;
 
-      const hasChain = med.chainAtHours?.includes(hour) ?? false;
+      const hasChain = (med.chainAtHours?.includes(hour) ?? false) && (med.chain?.length ?? 0) > 0;
+      const remainingChain: ChainStep[] = hasChain ? (med.chain ?? []) : [];
       const categoryIdentifier = hasChain ? 'next-category' : 'complete-category';
       console.log(`Scheduling ${med.id} at ${hour}:00, hasChain: ${hasChain}`);
       await Notifications.scheduleNotificationAsync({
@@ -79,7 +79,7 @@ export const scheduleMedicationReminders = async () => {
           ...notificationCommonContent,
           body: med.body,
           categoryIdentifier,
-          data: { medication: med.id, hour, hasChain },
+          data: { medication: med.id, hour, hasChain, remainingChain },
         },
         trigger: { ...androidTriggerBase, hour, minute: 0, repeats: true },
       });
@@ -124,13 +124,14 @@ export const useScheduledNotifications = () => {
     const settings = await getMedicationSettings();
     const med = settings.find(m => m.enabled) ?? DEFAULT_SETTINGS[0];
     const testHour = med.times[0] ?? 9;
-    const hasChain = med.chainAtHours?.includes(testHour) ?? false;
+    const hasChain = (med.chainAtHours?.includes(testHour) ?? false) && (med.chain?.length ?? 0) > 0;
+    const remainingChain: ChainStep[] = hasChain ? (med.chain ?? []) : [];
     await Notifications.scheduleNotificationAsync({
       content: {
         ...notificationCommonContent,
         body: med.body,
         categoryIdentifier: hasChain ? 'next-category' : 'complete-category',
-        data: { medication: med.id, hour: testHour, hasChain },
+        data: { medication: med.id, hour: testHour, hasChain, remainingChain },
       },
       trigger: { ...androidTriggerBase, seconds: 3 },
     });
@@ -241,8 +242,8 @@ export const usePushNotifications = () => {
     setNotificationModal(prev => ({ ...prev, visible: false, resolve: null }));
   };
 
-  // Core action processor — shared by the notification response handler
-  // and the missed-notification check on app resume.
+  // Core action processor. remainingChain carries the yet-to-fire steps of a
+  // multi-medication chain so we never need to re-read settings at action time.
   const processAction = async (
     actionIdentifier: string,
     medication: string,
@@ -250,6 +251,7 @@ export const usePushNotifications = () => {
     categoryIdentifier: string,
     hour: number,
     hasChain: boolean,
+    remainingChain: ChainStep[],
     notificationIdentifier?: string,
   ) => {
     if (actionIdentifier === 'SNOOZE' || actionIdentifier.startsWith('SNOOZE_')) {
@@ -263,29 +265,24 @@ export const usePushNotifications = () => {
       await Notifications.scheduleNotificationAsync({
         content: {
           body,
-          data: { medication, hour, hasChain },
+          data: { medication, hour, hasChain, remainingChain },
           categoryIdentifier,
           ...notificationCommonContent,
         },
         trigger: { ...androidTriggerBase, seconds },
       });
     } else if (actionIdentifier === 'NEXT') {
-      const settings = await getMedicationSettings();
-      const med = settings.find(m => m.id === medication);
-      if (med?.chain) {
-        console.log(`Scheduling ${med.chain.medicationId} after ${medication} for ${hour}:00`);
+      const [nextStep, ...rest] = remainingChain;
+      if (nextStep) {
+        console.log(`Scheduling ${nextStep.name} after ${medication} for ${hour}:00`);
         await Notifications.scheduleNotificationAsync({
           content: {
             ...notificationCommonContent,
-            categoryIdentifier: 'complete-category',
-            body: med.chain.body,
-            data: {
-              medication: med.chain.medicationId,
-              hour,
-              hasChain: false,
-            },
+            categoryIdentifier: rest.length > 0 ? 'next-category' : 'complete-category',
+            body: nextStep.body,
+            data: { medication: nextStep.id, hour, hasChain: rest.length > 0, remainingChain: rest },
           },
-          trigger: { ...androidTriggerBase, seconds: med.chain.delayMinutes * 60 },
+          trigger: { ...androidTriggerBase, seconds: nextStep.delayMinutes * 60 },
         });
       }
     } else if (actionIdentifier === 'COMPLETE') {
@@ -322,7 +319,7 @@ export const usePushNotifications = () => {
       return;
     }
 
-    const { medication, hasChain = false } = data;
+    const { medication, hasChain = false, remainingChain = [] } = data;
 
     // Guard: skip if this notification was already handled (prevents double-firing
     // when both getLastNotificationResponseAsync and the response listener trigger
@@ -358,7 +355,7 @@ export const usePushNotifications = () => {
       return;
     }
 
-    await processAction(actionIdentifier, medication, body, categoryIdentifier, hour, hasChain, identifier);
+    await processAction(actionIdentifier, medication, body, categoryIdentifier, hour, hasChain, remainingChain as ChainStep[], identifier);
   };
 
   const handleBackgroundNotificationResponse = async () => {
@@ -388,7 +385,7 @@ export const usePushNotifications = () => {
         console.log('Foreground notification has no medication data, skipping');
         return;
       }
-      const { medication, hour, hasChain = false } = data;
+      const { medication, hour, hasChain = false, remainingChain = [] } = data;
       const action = await showActionModal(body, hour, hasChain);
       await processAction(
         action,
@@ -397,6 +394,7 @@ export const usePushNotifications = () => {
         categoryIdentifier,
         hour,
         hasChain,
+        remainingChain as ChainStep[],
         notification.request.identifier,
       );
     });

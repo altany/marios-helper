@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type MedicationChain = {
-  medicationId: string;
+export type ChainStep = {
+  id: string;
+  name: string;
   body: string;
   delayMinutes: number;
 };
@@ -12,30 +13,34 @@ export type MedicationSchedule = {
   body: string;
   times: number[];     // scheduled hours (0–23)
   enabled: boolean;
-  chainAtHours?: number[]; // hours at which the NEXT action triggers a follow-up
-  chain?: MedicationChain;
+  chainAtHours?: number[]; // hours at which "Το έδωσα" triggers the chain
+  chain?: ChainStep[];     // ordered list of follow-up medications
 };
 
-const SETTINGS_KEY = 'medication_settings_v1';
+// Bumped to v2 — chain is now ChainStep[] instead of a single MedicationChain object.
+const SETTINGS_KEY = 'medication_settings_v2';
 
 export const DEFAULT_SETTINGS: MedicationSchedule[] = [
   {
     id: 'hylogel',
-    name: 'Hylogel + Lacrimmune',
+    name: 'Hylogel',
     body: 'Σταγόνες Hylogel - 1 σε κάθε μάτι',
     times: [9, 15, 21],
     enabled: true,
     chainAtHours: [9, 21],
-    chain: {
-      medicationId: 'lacrimmune',
-      body: 'Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ',
-      delayMinutes: 20,
-    },
+    chain: [
+      {
+        id: 'lacrimmune',
+        name: 'Lacrimmune',
+        body: 'Αλοιφή Lacrimmune - 1 κόκκος ρυζιού στο αριστερό και μασάζ',
+        delayMinutes: 20,
+      },
+    ],
   },
   {
     id: 'depon',
     name: 'Depon',
-    body: 'Depon - 1 δισκίο',
+    body: 'Depon - 1/4 του δισκίου',
     times: [9, 15, 21],
     enabled: true,
   },
