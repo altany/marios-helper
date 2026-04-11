@@ -57,11 +57,25 @@ export default function NotificationsScreen() {
               ))}
             </View>
           </View>
-          {(med.chain ?? []).map(step => (
-            <Text key={step.id} style={[s.summaryChain, { color: c.textMuted }]}>
-              → +{step.delayMinutes}λ {step.name}
-            </Text>
-          ))}
+          {(med.chain ?? []).map((step, idx) => {
+            const activeHours = idx === 0
+              ? (med.chainAtHours ?? [])
+              : (step.chainAtHours ?? med.chainAtHours ?? []);
+            return (
+              <View key={step.id} style={s.summaryChainRow}>
+                <Text style={[s.summaryChainLabel, { color: c.textMuted }]}>
+                  → +{step.delayMinutes}λ {step.name}
+                </Text>
+                <View style={s.pillsRow}>
+                  {activeHours.map(h => (
+                    <View key={h} style={[s.pill, { backgroundColor: c.accent + '15' }]}>
+                      <Text style={[s.pillText, { color: c.accent }]}>{formatHour(h)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
         </View>
       ))}
 
@@ -152,7 +166,8 @@ const s = StyleSheet.create({
   pillsRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
   pill: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   pillText: { fontSize: 12, fontWeight: '600' },
-  summaryChain: { fontSize: 12, marginLeft: 4 },
+  summaryChainRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  summaryChainLabel: { fontSize: 12 },
   sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
   emptyCard: { borderRadius: 12, padding: 20, alignItems: 'center', borderWidth: 1 },
   emptyText: { fontSize: 14 },
