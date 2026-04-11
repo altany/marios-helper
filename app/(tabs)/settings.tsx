@@ -9,25 +9,13 @@ import {
   DEFAULT_SETTINGS, MedicationSchedule, ChainStep,
 } from '../services/medicationSettings';
 import { resetAndRescheduleNotifications } from '../services/notifications';
+import { getColors } from '../theme';
 
 const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
 const genId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 type ChainForm = { name: string; body: string; delayMinutes: string };
 const emptyChainForm = (): ChainForm => ({ name: '', body: '', delayMinutes: '20' });
-
-const getColors = (scheme: 'light' | 'dark') => ({
-  bg:            scheme === 'dark' ? '#13131f' : '#f2f2f7',
-  card:          scheme === 'dark' ? '#1e1e2e' : '#ffffff',
-  inputBg:       scheme === 'dark' ? '#2a2a3e' : '#f0f2f5',
-  border:        scheme === 'dark' ? '#2a2a3e' : '#e0e0e0',
-  accent:        '#317181',
-  text:          scheme === 'dark' ? '#cdd6f4' : '#11181C',
-  textSecondary: scheme === 'dark' ? '#a6adc8' : '#687076',
-  textMuted:     scheme === 'dark' ? '#585b70' : '#9BA1A6',
-  placeholder:   scheme === 'dark' ? '#555'    : '#aaa',
-  overlay:       'rgba(0,0,0,0.65)',
-});
 
 export default function SettingsScreen() {
   const scheme = useColorScheme() ?? 'dark';

@@ -1,18 +1,27 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-
+import { useColorScheme } from 'react-native';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { getColors } from '../theme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const scheme = useColorScheme() ?? 'dark';
+  const c = getColors(scheme);
 
   return (
     <Tabs
       initialRouteName="notifications"
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        headerShown: false,
+        tabBarActiveTintColor: c.accent,
+        tabBarInactiveTintColor: c.textMuted,
+        tabBarStyle: {
+          backgroundColor: c.card,
+          borderTopColor: c.cardBorder,
+          borderTopWidth: 1,
+          paddingTop: 4,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
       <Tabs.Screen

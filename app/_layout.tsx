@@ -3,10 +3,10 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, BackHandler, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, BackHandler, ScrollView, useColorScheme } from 'react-native';
 import 'react-native-reanimated';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { usePushNotifications, registerForPushNotificationsAsync } from './services/notifications';
+import { getColors } from './theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,27 +23,17 @@ const formatMinutes = (min: number) => {
 };
 
 const RootLayout = () => {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
+  const scheme = useColorScheme() ?? 'dark';
+  const c = getColors(scheme);
+  const [loaded] = useFonts({ SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf') });
   const { notificationModal, handleModalAction } = usePushNotifications();
   const [snoozePickerOpen, setSnoozePickerOpen] = useState(false);
   const [selectedMinutes, setSelectedMinutes] = useState(10);
   const pickerRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    registerForPushNotificationsAsync();
-  }, []);
+  useEffect(() => { registerForPushNotificationsAsync(); }, []);
+  useEffect(() => { if (loaded) SplashScreen.hideAsync(); }, [loaded]);
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  // Reset picker state when modal closes
   useEffect(() => {
     if (!notificationModal.visible) {
       setSnoozePickerOpen(false);
@@ -51,7 +41,6 @@ const RootLayout = () => {
     }
   }, [notificationModal.visible]);
 
-  // Scroll wheel to current selection when picker opens
   useEffect(() => {
     if (snoozePickerOpen) {
       const idx = SNOOZE_OPTIONS.indexOf(selectedMinutes);
@@ -61,15 +50,11 @@ const RootLayout = () => {
     }
   }, [snoozePickerOpen]);
 
-  // Prevent Android back button from dismissing the modal without an action
   useEffect(() => {
     if (!notificationModal.visible) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (snoozePickerOpen) {
-        setSnoozePickerOpen(false);
-        return true;
-      }
-      return true; // block dismiss
+      if (snoozePickerOpen) { setSnoozePickerOpen(false); return true; }
+      return true;
     });
     return () => sub.remove();
   }, [notificationModal.visible, snoozePickerOpen]);
@@ -77,7 +62,7 @@ const RootLayout = () => {
   if (!loaded) return null;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
@@ -85,18 +70,15 @@ const RootLayout = () => {
         visible={notificationModal.visible}
         transparent
         animationType="fade"
-        onRequestClose={() => { /* blocked intentionally */ }}
+        onRequestClose={() => {}}
       >
-        <View style={modalStyles.overlay}>
-          <View style={modalStyles.dialog}>
+        <View style={[m.overlay, { backgroundColor: c.overlay }]}>
+          <View style={[m.dialog, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
             {snoozePickerOpen ? (
               <>
-                <Text style={modalStyles.title}>Αργότερα σε...</Text>
-
-                <View style={modalStyles.pickerContainer}>
-                  {/* Selection highlight band */}
-                  <View style={modalStyles.pickerHighlight} pointerEvents="none" />
-
+                <Text style={[m.title, { color: c.text }]}>Αργότερα σε...</Text>
+                <View style={[m.pickerContainer, { backgroundColor: c.inputBg }]}>
+                  <View style={[m.pickerHighlight, { backgroundColor: c.accent }]} pointerEvents="none" />
                   <ScrollView
                     ref={pickerRef}
                     style={{ height: PICKER_HEIGHT }}
@@ -104,17 +86,17 @@ const RootLayout = () => {
                     snapToInterval={ITEM_HEIGHT}
                     decelerationRate="fast"
                     showsVerticalScrollIndicator={false}
-                    onMomentumScrollEnd={(e) => {
+                    onMomentumScrollEnd={e => {
                       const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-                      const clamped = Math.max(0, Math.min(idx, SNOOZE_OPTIONS.length - 1));
-                      setSelectedMinutes(SNOOZE_OPTIONS[clamped]);
+                      setSelectedMinutes(SNOOZE_OPTIONS[Math.max(0, Math.min(idx, SNOOZE_OPTIONS.length - 1))]);
                     }}
                   >
-                    {SNOOZE_OPTIONS.map((min) => (
-                      <View key={min} style={modalStyles.pickerItem}>
+                    {SNOOZE_OPTIONS.map(min => (
+                      <View key={min} style={m.pickerItem}>
                         <Text style={[
-                          modalStyles.pickerItemText,
-                          selectedMinutes === min && modalStyles.pickerItemTextSelected,
+                          m.pickerItemText,
+                          { color: c.textSecondary },
+                          selectedMinutes === min && { color: '#fff', fontWeight: '700', fontSize: 19 },
                         ]}>
                           {formatMinutes(min)}
                         </Text>
@@ -122,49 +104,39 @@ const RootLayout = () => {
                     ))}
                   </ScrollView>
                 </View>
-
-                <View style={modalStyles.row}>
+                <View style={m.row}>
                   <TouchableOpacity
-                    style={[modalStyles.button, modalStyles.halfButton]}
+                    style={[m.btn, m.half, { backgroundColor: c.inputBg }]}
                     onPress={() => setSnoozePickerOpen(false)}
                   >
-                    <Text style={modalStyles.buttonText}>Πίσω</Text>
+                    <Text style={[m.btnText, { color: c.text }]}>Πίσω</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[modalStyles.button, modalStyles.primaryButton, modalStyles.halfButton]}
+                    style={[m.btn, m.half, { backgroundColor: c.accent }]}
                     onPress={() => handleModalAction(`SNOOZE_${selectedMinutes}`)}
                   >
-                    <Text style={modalStyles.buttonText}>Επιβεβαίωση</Text>
+                    <Text style={[m.btnText, { color: '#fff' }]}>Επιβεβαίωση</Text>
                   </TouchableOpacity>
                 </View>
               </>
             ) : (
               <>
-                <Text style={modalStyles.title}>Φάρμακο Μάριο</Text>
-                <Text style={modalStyles.body}>{notificationModal.body}</Text>
-
+                <Text style={[m.label, { color: c.accent }]}>Φάρμακο Μάριο</Text>
+                <Text style={[m.body, { color: c.text }]}>{notificationModal.body}</Text>
                 <TouchableOpacity
-                  style={modalStyles.button}
+                  style={[m.btn, { backgroundColor: c.inputBg }]}
                   onPress={() => setSnoozePickerOpen(true)}
                 >
-                  <Text style={modalStyles.buttonText}>Αργότερα...</Text>
+                  <Text style={[m.btnText, { color: c.textSecondary }]}>Αργότερα...</Text>
                 </TouchableOpacity>
-
-                {notificationModal.hasChain ? (
-                  <TouchableOpacity
-                    style={[modalStyles.button, modalStyles.primaryButton]}
-                    onPress={() => handleModalAction('NEXT')}
-                  >
-                    <Text style={modalStyles.buttonText}>Το έδωσα</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[modalStyles.button, modalStyles.primaryButton]}
-                    onPress={() => handleModalAction('COMPLETE')}
-                  >
-                    <Text style={modalStyles.buttonText}>Τέλος</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={[m.btn, { backgroundColor: c.accent }]}
+                  onPress={() => handleModalAction(notificationModal.hasChain ? 'NEXT' : 'COMPLETE')}
+                >
+                  <Text style={[m.btnText, { color: '#fff' }]}>
+                    {notificationModal.hasChain ? 'Το έδωσα' : 'Τέλος'}
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -174,82 +146,20 @@ const RootLayout = () => {
   );
 };
 
-const modalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dialog: {
-    backgroundColor: '#1e1e2e',
-    borderRadius: 12,
-    padding: 24,
-    width: '85%',
-    gap: 12,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  body: {
-    color: '#cdd6f4',
-    fontSize: 15,
-    marginBottom: 8,
-  },
-  pickerContainer: {
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#2a2a3e',
-  },
-  pickerHighlight: {
-    position: 'absolute',
-    top: ITEM_HEIGHT,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    backgroundColor: '#317181',
-    borderRadius: 8,
-    opacity: 0.4,
-    zIndex: 1,
-  },
-  pickerItem: {
-    height: ITEM_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pickerItemText: {
-    color: '#a6adc8',
-    fontSize: 17,
-  },
-  pickerItemTextSelected: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 19,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  button: {
-    backgroundColor: '#317181',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-  },
-  halfButton: {
-    flex: 1,
-  },
-  primaryButton: {
-    backgroundColor: '#89b4fa',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
+const m = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  dialog: { borderRadius: 16, padding: 24, width: '85%', gap: 12, borderWidth: 1 },
+  label: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  title: { fontSize: 18, fontWeight: '700' },
+  body: { fontSize: 17, lineHeight: 24, marginBottom: 4 },
+  pickerContainer: { borderRadius: 12, overflow: 'hidden' },
+  pickerHighlight: { position: 'absolute', top: ITEM_HEIGHT, left: 0, right: 0, height: ITEM_HEIGHT, borderRadius: 8, opacity: 0.35, zIndex: 1 },
+  pickerItem: { height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' },
+  pickerItemText: { fontSize: 17 },
+  row: { flexDirection: 'row', gap: 10 },
+  btn: { borderRadius: 12, padding: 15, alignItems: 'center' },
+  half: { flex: 1 },
+  btnText: { fontSize: 15, fontWeight: '600' },
 });
 
 export default RootLayout;
