@@ -378,6 +378,8 @@ export const usePushNotifications = () => {
 
     // When a notification arrives while the app is foregrounded, skip the
     // system banner (suppressed above) and show the non-dismissable modal directly.
+    // Also schedule a backup notification in the drawer after 2s so that if the
+    // user closes the app without acting, the reminder is still visible.
     const receivedListener = Notifications.addNotificationReceivedListener(async notification => {
       console.log('Notification received in foreground');
       const { body, data, categoryIdentifier } = notification.request.content as {
@@ -385,12 +387,32 @@ export const usePushNotifications = () => {
         data: any;
         categoryIdentifier: string;
       };
-      if (!data?.medication) {
-        console.log('Foreground notification has no medication data, skipping');
+      // Skip backup notifications (posted by us below) to avoid modal loops.
+      if (!data?.medication || data?.isBackup) {
+        console.log('Foreground notification skipped (no medication data or backup)');
         return;
       }
       const { medication, hour, hasChain = false, remainingChain = [] } = data;
+
+      // Schedule backup into the drawer. shouldShowAlert:false means it won't
+      // appear as a banner while the app is open, but it will be in the drawer
+      // if the user closes the app before acting on the modal.
+      const backupId = await Notifications.scheduleNotificationAsync({
+        content: {
+          ...notificationCommonContent,
+          body,
+          categoryIdentifier,
+          data: { medication, hour, hasChain, remainingChain, isBackup: true },
+        },
+        trigger: { ...androidTriggerBase, seconds: 2 },
+      });
+
       const action = await showActionModal(body, hour, hasChain);
+
+      // User acted — cancel the backup if not yet fired, dismiss it if already in drawer.
+      try { await Notifications.cancelScheduledNotificationAsync(backupId); } catch (_) {}
+      try { await Notifications.dismissNotificationAsync(backupId); } catch (_) {}
+
       await processAction(
         action,
         medication,
