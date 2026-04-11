@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, BackHandler, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, BackHandler, ScrollView, useColorScheme } from 'react-native';
 import 'react-native-reanimated';
 import { usePushNotifications, registerForPushNotificationsAsync } from './services/notifications';
 import { getColors } from './theme';
@@ -66,12 +66,7 @@ const RootLayout = () => {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
-      <Modal
-        visible={notificationModal.visible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {}}
-      >
+      {notificationModal.visible && (
         <View style={[m.overlay, { backgroundColor: c.overlay }]}>
           <View style={[m.dialog, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
             {snoozePickerOpen ? (
@@ -141,13 +136,13 @@ const RootLayout = () => {
             )}
           </View>
         </View>
-      </Modal>
+      )}
     </ThemeProvider>
   );
 };
 
 const m = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 999 },
   dialog: { borderRadius: 16, padding: 24, width: '85%', gap: 12, borderWidth: 1 },
   label: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
   title: { fontSize: 18, fontWeight: '700' },
