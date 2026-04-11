@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useScheduledNotifications } from '../services/notifications';
+import { getMedicationSettings, MedicationSchedule } from '../services/medicationSettings';
 import { getColors } from '../theme';
 
 const formatTime = (hour: number, minute: number = 0) =>
@@ -11,9 +13,16 @@ const formatFireTime = (secondsFromNow: number) => {
   return formatTime(d.getHours(), d.getMinutes());
 };
 
+const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
+
 export default function NotificationsScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const c = getColors(scheme);
+  const [meds, setMeds] = useState<MedicationSchedule[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    getMedicationSettings().then(setMeds);
+  }, []));
 
   const { scheduledNotifications, getScheduledNotifications, resetNotifications, disableNotifications, test } =
     useScheduledNotifications();
@@ -31,6 +40,30 @@ export default function NotificationsScreen() {
       refreshControl={<RefreshControl refreshing={false} onRefresh={getScheduledNotifications} tintColor={c.accent} />}
     >
       <Text style={[s.pageTitle, { color: c.text }]}>Ειδοποιήσεις</Text>
+
+      {/* Schedule summary */}
+      {meds.filter(m => m.enabled).map(med => (
+        <View key={med.id} style={[s.summaryCard, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
+          {!!med.groupTitle && (
+            <Text style={[s.summaryGroup, { color: c.accent }]}>{med.groupTitle}</Text>
+          )}
+          <View style={s.summaryRow}>
+            <Text style={[s.summaryName, { color: c.text }]}>{med.name}</Text>
+            <View style={s.pillsRow}>
+              {med.times.map(h => (
+                <View key={h} style={[s.pill, { backgroundColor: c.accent + '22' }]}>
+                  <Text style={[s.pillText, { color: c.accent }]}>{formatHour(h)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          {(med.chain ?? []).map(step => (
+            <Text key={step.id} style={[s.summaryChain, { color: c.textMuted }]}>
+              → +{step.delayMinutes}λ {step.name}
+            </Text>
+          ))}
+        </View>
+      ))}
 
       <Text style={[s.sectionTitle, { color: c.textSecondary }]}>Καθημερινές</Text>
 
@@ -111,7 +144,15 @@ export default function NotificationsScreen() {
 
 const s = StyleSheet.create({
   content: { padding: 20, paddingBottom: 48 },
-  pageTitle: { fontSize: 28, fontWeight: '700', marginBottom: 24, marginTop: 12 },
+  pageTitle: { fontSize: 28, fontWeight: '700', marginBottom: 14, marginTop: 12 },
+  summaryCard: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 8, gap: 4 },
+  summaryGroup: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  summaryName: { fontSize: 15, fontWeight: '600', flex: 1 },
+  pillsRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  pill: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  pillText: { fontSize: 12, fontWeight: '600' },
+  summaryChain: { fontSize: 12, marginLeft: 4 },
   sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
   emptyCard: { borderRadius: 12, padding: 20, alignItems: 'center', borderWidth: 1 },
   emptyText: { fontSize: 14 },

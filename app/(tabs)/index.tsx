@@ -1,104 +1,75 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, useColorScheme, ActivityIndicator } from 'react-native';
-import { getMedicationSettings, MedicationSchedule } from '../services/medicationSettings';
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, useColorScheme } from 'react-native';
+import { scheduleMedicationReminders, getLastNotifactionResponse } from '../services/notifications';
+import * as Notifications from 'expo-notifications';
 import { getColors } from '../theme';
-
-const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 export default function InstructionsScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const c = getColors(scheme);
-  const [meds, setMeds] = useState<MedicationSchedule[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [lastNotificationResponse, setLastNotificationResponse] = useState<Notifications.NotificationResponse | null>(null);
 
   useEffect(() => {
-    getMedicationSettings().then(s => {
-      setMeds(s);
-      setLoading(false);
-    });
+    scheduleMedicationReminders();
   }, []);
 
-  if (loading) {
-    return (
-      <View style={[s.fill, s.centered, { backgroundColor: c.bg }]}>
-        <ActivityIndicator color={c.accent} />
-      </View>
-    );
-  }
+  useEffect(() => {
+    getLastNotifactionResponse().then(r => { if (r) setLastNotificationResponse(r); });
+  }, []);
+
+  const { title, body } = lastNotificationResponse?.notification?.request?.content || {};
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={s.content}>
       <Text style={[s.pageTitle, { color: c.text }]}>Οδηγίες</Text>
-      <Text style={[s.subtitle, { color: c.textSecondary }]}>Τρέχον πρόγραμμα φαρμάκων</Text>
 
-      {meds.filter(m => m.enabled).map(med => (
-        <View key={med.id} style={[s.card, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
-          {!!med.groupTitle && (
-            <Text style={[s.groupTitle, { color: c.accent }]}>{med.groupTitle}</Text>
-          )}
-
-          {/* Root medication */}
-          <View style={s.medRow}>
-            <Text style={[s.medName, { color: c.text }]}>{med.name}</Text>
-            <View style={s.timesRow}>
-              {med.times.map(h => (
-                <View key={h} style={[s.timePill, { backgroundColor: c.accent + '22' }]}>
-                  <Text style={[s.timePillText, { color: c.accent }]}>{formatHour(h)}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-          {!!med.body && (
-            <Text style={[s.medBody, { color: c.textSecondary }]}>{med.body}</Text>
-          )}
-
-          {/* Chain steps */}
-          {(med.chain ?? []).map((step, idx) => (
-            <View key={step.id}>
-              <View style={s.chainConnector}>
-                <View style={[s.chainLine, { backgroundColor: c.cardBorder }]} />
-                <Text style={[s.chainDelay, { color: c.textMuted }]}>+{step.delayMinutes} λεπτά</Text>
-                <View style={[s.chainLine, { backgroundColor: c.cardBorder }]} />
-              </View>
-              <View style={[s.chainStepCard, { backgroundColor: c.inputBg }]}>
-                <Text style={[s.medName, { color: c.text }]}>{step.name}</Text>
-                {!!step.body && (
-                  <Text style={[s.medBody, { color: c.textSecondary }]}>{step.body}</Text>
-                )}
-                {(med.chainAtHours ?? []).length > 0 && idx === 0 && (
-                  <View style={s.timesRow}>
-                    {(med.chainAtHours ?? []).map(h => (
-                      <View key={h} style={[s.timePill, { backgroundColor: c.accent + '22' }]}>
-                        <Text style={[s.timePillText, { color: c.accent }]}>{formatHour(h)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            </View>
-          ))}
+      {(title || body) && (
+        <View style={[s.notifCard, { borderColor: c.accent, backgroundColor: c.card }]}>
+          <Text style={[s.notifLabel, { color: c.accent }]}>Πιο πρόσφατη ειδοποίηση</Text>
+          {title && <Text style={[s.notifTitle, { color: c.text }]}>{title}</Text>}
+          {body  && <Text style={[s.notifBody,  { color: c.textSecondary }]}>{body}</Text>}
         </View>
-      ))}
+      )}
+
+      <Text style={[s.sectionHeader, { color: c.textSecondary }]}>Ως τέλος Αυγούστου</Text>
+
+      <View style={[s.card, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
+        <Text style={[s.medTitle, { color: c.text }]}>Φάρμακο 1: Exocin κολήριο</Text>
+        <Text style={[s.medDetail, { color: c.textSecondary }]}>1 σταγόνα × 4 φορές την ημέρα</Text>
+        <Text style={[s.medDetail, { color: c.textSecondary }]}>
+          Στο <Text style={[s.bold, { color: c.text }]}>αριστερό</Text> μάτι
+        </Text>
+      </View>
+
+      <View style={[s.card, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
+        <Text style={[s.medTitle, { color: c.text }]}>Φάρμακο 2: Hylogel κολήριο</Text>
+        <Text style={[s.medDetail, { color: c.textSecondary }]}>1 σταγόνα × 4 φορές την ημέρα</Text>
+        <Text style={[s.medDetail, { color: c.textSecondary }]}>
+          Και στα <Text style={[s.bold, { color: c.text }]}>δυο μάτια</Text>
+        </Text>
+      </View>
+
+      <View style={[s.card, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
+        <Text style={[s.medTitle, { color: c.text }]}>Φάρμακο 3: Lacrimmune αλοιφή</Text>
+        <Text style={[s.medDetail, { color: c.textSecondary }]}>Ποσότητα ίση με ένα κόκκο ρυζιού</Text>
+        <Text style={[s.medDetail, { color: c.textSecondary }]}>Ανά 12ωρο (πρωί + βράδυ)</Text>
+        <Text style={[s.medDetail, { color: c.textSecondary }]}>Μέσα στο αριστερό μάτι + μασάζ με το βλέφαρο</Text>
+      </View>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  fill: { flex: 1 },
-  centered: { justifyContent: 'center', alignItems: 'center' },
   content: { padding: 20, paddingBottom: 48 },
-  pageTitle: { fontSize: 28, fontWeight: '700', marginBottom: 4, marginTop: 12 },
-  subtitle: { fontSize: 14, marginBottom: 24 },
-  card: { borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, gap: 8 },
-  groupTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 },
-  medRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
-  medName: { fontSize: 16, fontWeight: '700', flex: 1 },
-  medBody: { fontSize: 14, lineHeight: 20 },
-  timesRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
-  timePill: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  timePillText: { fontSize: 12, fontWeight: '600' },
-  chainConnector: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 6 },
-  chainLine: { flex: 1, height: 1 },
-  chainDelay: { fontSize: 12 },
-  chainStepCard: { borderRadius: 10, padding: 12, gap: 6 },
+  pageTitle: { fontSize: 28, fontWeight: '700', marginBottom: 20, marginTop: 12 },
+  sectionHeader: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, marginTop: 4 },
+  notifCard: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 20, gap: 4 },
+  notifLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  notifTitle: { fontSize: 15, fontWeight: '600' },
+  notifBody: { fontSize: 14 },
+  card: { borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: 10, gap: 6 },
+  medTitle: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  medDetail: { fontSize: 14, lineHeight: 20 },
+  bold: { fontWeight: '700' },
 });
