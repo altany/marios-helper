@@ -5,6 +5,7 @@ export type ChainStep = {
   name: string;
   body: string;
   delayMinutes: number;
+  chainAtHours?: number[]; // if set, chains to the next step only at these hours
 };
 
 export type MedicationSchedule = {

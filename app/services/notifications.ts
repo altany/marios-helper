@@ -274,13 +274,17 @@ export const usePushNotifications = () => {
     } else if (actionIdentifier === 'NEXT') {
       const [nextStep, ...rest] = remainingChain;
       if (nextStep) {
-        console.log(`Scheduling ${nextStep.name} after ${medication} for ${hour}:00`);
+        // A step chains to the next one only if the current hour is in its chainAtHours
+        // (or if chainAtHours is not set, meaning it chains at all hours).
+        const nextStepChains = rest.length > 0 &&
+          (nextStep.chainAtHours == null || nextStep.chainAtHours.includes(hour));
+        console.log(`Scheduling ${nextStep.name} after ${medication} for ${hour}:00, chains further: ${nextStepChains}`);
         await Notifications.scheduleNotificationAsync({
           content: {
             ...notificationCommonContent,
-            categoryIdentifier: rest.length > 0 ? 'next-category' : 'complete-category',
+            categoryIdentifier: nextStepChains ? 'next-category' : 'complete-category',
             body: nextStep.body,
-            data: { medication: nextStep.id, hour, hasChain: rest.length > 0, remainingChain: rest },
+            data: { medication: nextStep.id, hour, hasChain: nextStepChains, remainingChain: nextStepChains ? rest : [] },
           },
           trigger: { ...androidTriggerBase, seconds: nextStep.delayMinutes * 60 },
         });

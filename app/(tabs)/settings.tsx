@@ -118,6 +118,20 @@ export default function SettingsScreen() {
     setChainModal(null);
   };
 
+  const toggleChainStepHour = (medId: string, stepIndex: number, hour: number) =>
+    setSettings(prev => prev.map(m => {
+      if (m.id !== medId) return m;
+      const chain = (m.chain ?? []).map((step, i) => {
+        if (i !== stepIndex) return step;
+        const cur = step.chainAtHours ?? [];
+        const updated = cur.includes(hour)
+          ? cur.filter(h => h !== hour)
+          : [...cur, hour].sort((a, b) => a - b);
+        return { ...step, chainAtHours: updated };
+      });
+      return { ...m, chain };
+    }));
+
   const updateChainStep = (medId: string, stepIndex: number, field: keyof ChainStep, value: string) =>
     setSettings(prev => prev.map(m => {
       if (m.id !== medId) return m;
@@ -307,6 +321,30 @@ export default function SettingsScreen() {
                   placeholderTextColor="#555"
                 />
               </View>
+
+              {/* Chain hour selector for this step — only if there's a next step */}
+              {idx < (med.chain?.length ?? 0) - 1 && med.times.length > 0 && (
+                <>
+                  <Text style={s.sublabel}>Αλυσίδα ενεργή στις:</Text>
+                  <View style={s.chipRow}>
+                    {med.times.map(hour => {
+                      // undefined chainAtHours = active at all hours
+                      const active = step.chainAtHours == null || step.chainAtHours.includes(hour);
+                      return (
+                        <TouchableOpacity
+                          key={hour}
+                          style={[s.chip, active ? s.chipChainOn : s.chipChainOff]}
+                          onPress={() => toggleChainStepHour(med.id, idx, hour)}
+                        >
+                          <Text style={[s.chipText, !active && s.chipTextOff]}>
+                            {formatHour(hour)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
             </View>
           ))}
 
