@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Switch, TouchableOpacity,
+  Animated, View, Text, TextInput, Switch, TouchableOpacity,
   ScrollView, StyleSheet, Modal, Alert, ActivityIndicator,
   useColorScheme,
 } from 'react-native';
@@ -14,6 +14,17 @@ import { getColors } from '../theme';
 const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
 const genId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
+// Returns the hours at which chain step `idx` can actually fire.
+// = med.chainAtHours ∩ chain[0].chainAtHours ∩ ... ∩ chain[idx-1].chainAtHours
+const getEffectiveHours = (med: MedicationSchedule, idx: number): number[] => {
+  let hours = med.chainAtHours ?? [];
+  for (let i = 0; i < idx; i++) {
+    const stepHours = med.chain?.[i]?.chainAtHours;
+    if (stepHours != null) hours = hours.filter(h => stepHours.includes(h));
+  }
+  return hours;
+};
+
 type ChainForm = { name: string; body: string; delayMinutes: string };
 const emptyChainForm = (): ChainForm => ({ name: '', body: '', delayMinutes: '20' });
 
@@ -24,6 +35,17 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<MedicationSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  const showToast = (msg: string, ok: boolean) => {
+    setToast({ msg, ok });
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(2000),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setToast(null));
+  };
 
   const [addHourFor, setAddHourFor] = useState<string | null>(null);
 
@@ -165,9 +187,9 @@ export default function SettingsScreen() {
     try {
       await saveMedicationSettings(settings);
       await resetAndRescheduleNotifications();
-      Alert.alert('Αποθηκεύτηκε', 'Οι ειδοποιήσεις επαναπρογραμματίστηκαν.');
+      showToast('Αποθηκεύτηκε', true);
     } catch (e) {
-      Alert.alert('Σφάλμα', 'Δεν ήταν δυνατή η αποθήκευση.');
+      showToast('Σφάλμα αποθήκευσης', false);
     } finally {
       setSaving(false);
     }
@@ -195,7 +217,8 @@ export default function SettingsScreen() {
     : [];
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={l.content}>
+    <View style={[l.fill, { backgroundColor: c.bg }]}>
+    <ScrollView style={l.fill} contentContainerStyle={l.content}>
       <Text style={[l.pageTitle, { color: c.text }]}>Ρυθμίσεις φαρμάκων</Text>
 
       {settings.map(med => (
@@ -323,25 +346,29 @@ export default function SettingsScreen() {
               </View>
 
               {/* Per-step chain hours (only if there's a next step) */}
-              {idx < (med.chain?.length ?? 0) - 1 && med.times.length > 0 && (
-                <>
-                  <Text style={[l.sublabel, { color: c.textMuted }]}>Αλυσίδα ενεργή στις:</Text>
-                  <View style={l.chipRow}>
-                    {med.times.map(hour => {
-                      const active = step.chainAtHours == null || step.chainAtHours.includes(hour);
-                      return (
-                        <TouchableOpacity
-                          key={hour}
-                          style={[l.chip, active ? { backgroundColor: c.accent } : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.accent }]}
-                          onPress={() => toggleChainStepHour(med.id, idx, hour)}
-                        >
-                          <Text style={[l.chipText, !active && { color: c.accent }]}>{formatHour(hour)}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
+              {idx < (med.chain?.length ?? 0) - 1 && (() => {
+                const effectiveHours = getEffectiveHours(med, idx);
+                if (effectiveHours.length === 0) return null;
+                return (
+                  <>
+                    <Text style={[l.sublabel, { color: c.textMuted }]}>Αλυσίδα ενεργή στις:</Text>
+                    <View style={l.chipRow}>
+                      {effectiveHours.map(hour => {
+                        const active = step.chainAtHours == null || step.chainAtHours.includes(hour);
+                        return (
+                          <TouchableOpacity
+                            key={hour}
+                            style={[l.chip, active ? { backgroundColor: c.accent } : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.accent }]}
+                            onPress={() => toggleChainStepHour(med.id, idx, hour)}
+                          >
+                            <Text style={[l.chipText, !active && { color: c.accent }]}>{formatHour(hour)}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                );
+              })()}
             </View>
           ))}
 
@@ -472,6 +499,13 @@ export default function SettingsScreen() {
       </Modal>
 
     </ScrollView>
+
+    {toast && (
+      <Animated.View style={[l.toast, { backgroundColor: toast.ok ? c.accent : '#ff453a', opacity: toastOpacity }]}>
+        <Text style={l.toastText}>{toast.msg}</Text>
+      </Animated.View>
+    )}
+    </View>
   );
 }
 
@@ -524,6 +558,9 @@ const l = StyleSheet.create({
   saveBtn: { borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 8 },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 },
+  toastText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 
   overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   modalBox: { borderRadius: 12, padding: 20, width: '88%', maxHeight: '85%' },

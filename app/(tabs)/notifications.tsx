@@ -58,9 +58,12 @@ export default function NotificationsScreen() {
             </View>
           </View>
           {(med.chain ?? []).map((step, idx) => {
-            const activeHours = idx === 0
-              ? (med.chainAtHours ?? [])
-              : (step.chainAtHours ?? med.chainAtHours ?? []);
+            // Effective hours = med.chainAtHours ∩ chain[0].chainAtHours ∩ … ∩ chain[idx-1].chainAtHours
+            let activeHours = med.chainAtHours ?? [];
+            for (let i = 0; i < idx; i++) {
+              const sh = med.chain?.[i]?.chainAtHours;
+              if (sh != null) activeHours = activeHours.filter(h => sh.includes(h));
+            }
             return (
               <View key={step.id} style={s.summaryChainRow}>
                 <Text style={[s.summaryChainLabel, { color: c.textMuted }]}>
