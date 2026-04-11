@@ -102,31 +102,32 @@ export default function SettingsScreen() {
     setChainForm(emptyChainForm());
   };
 
-  const openEditStep = (medId: string, stepIndex: number, step: ChainStep) => {
-    setChainModal({ medId, stepIndex });
-    setChainForm({ name: step.name, body: step.body, delayMinutes: String(step.delayMinutes) });
-  };
-
   const saveChainStep = () => {
     if (!chainModal || !chainForm.name.trim()) return;
-    const { medId, stepIndex } = chainModal;
+    const { medId } = chainModal;
     const step: ChainStep = {
-      id: stepIndex !== null
-        ? (settings.find(m => m.id === medId)?.chain?.[stepIndex]?.id ?? genId())
-        : genId(),
+      id: genId(),
       name: chainForm.name.trim(),
       body: chainForm.body.trim(),
       delayMinutes: Math.max(1, parseInt(chainForm.delayMinutes) || 20),
     };
     setSettings(prev => prev.map(m => {
       if (m.id !== medId) return m;
-      const chain = [...(m.chain ?? [])];
-      if (stepIndex !== null) chain[stepIndex] = step;
-      else chain.push(step);
-      return { ...m, chain };
+      return { ...m, chain: [...(m.chain ?? []), step] };
     }));
     setChainModal(null);
   };
+
+  const updateChainStep = (medId: string, stepIndex: number, field: keyof ChainStep, value: string) =>
+    setSettings(prev => prev.map(m => {
+      if (m.id !== medId) return m;
+      const chain = (m.chain ?? []).map((step, i) => {
+        if (i !== stepIndex) return step;
+        if (field === 'delayMinutes') return { ...step, delayMinutes: Math.max(1, parseInt(value) || 1) };
+        return { ...step, [field]: value };
+      });
+      return { ...m, chain };
+    }));
 
   const removeChainStep = (medId: string, stepIndex: number) =>
     setSettings(prev => prev.map(m => {
@@ -268,33 +269,44 @@ export default function SettingsScreen() {
             </>
           )}
 
-          {/* Subsequent chain steps — same styling as the first */}
+          {/* Subsequent chain steps — identical presentation to the first */}
           {(med.chain ?? []).map((step, idx) => (
             <View key={step.id}>
               <View style={s.chainConnector}>
                 <View style={s.chainLine} />
-                <Text style={s.chainDelay}>+{step.delayMinutes} λεπτά</Text>
+                <TextInput
+                  style={s.chainDelayInput}
+                  value={String(step.delayMinutes)}
+                  onChangeText={v => updateChainStep(med.id, idx, 'delayMinutes', v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  selectTextOnFocus
+                />
+                <Text style={s.chainDelaySuffix}>λεπτά</Text>
                 <View style={s.chainLine} />
+                <TouchableOpacity
+                  onPress={() => removeChainStep(med.id, idx)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={s.chainStepRemove}>×</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={s.medStep}
-                onPress={() => openEditStep(med.id, idx, step)}
-                activeOpacity={0.75}
-              >
-                <View style={s.stepRow}>
-                  <Text style={s.stepNameStatic}>{step.name || '—'}</Text>
-                  <TouchableOpacity
-                    onPress={() => removeChainStep(med.id, idx)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Text style={s.chainStepRemove}>×</Text>
-                  </TouchableOpacity>
-                </View>
-                {!!step.body && (
-                  <Text style={s.stepBodyStatic} numberOfLines={2}>{step.body}</Text>
-                )}
-                <Text style={s.tapToEdit}>Πάτα για επεξεργασία</Text>
-              </TouchableOpacity>
+              <View style={s.medStep}>
+                <TextInput
+                  style={s.stepNameInput}
+                  value={step.name}
+                  onChangeText={v => updateChainStep(med.id, idx, 'name', v)}
+                  placeholder="Όνομα φαρμάκου"
+                  placeholderTextColor="#555"
+                />
+                <TextInput
+                  style={s.stepBodyInput}
+                  value={step.body}
+                  onChangeText={v => updateChainStep(med.id, idx, 'body', v)}
+                  multiline
+                  placeholder="Δόση / κείμενο ειδοποίησης"
+                  placeholderTextColor="#555"
+                />
+              </View>
             </View>
           ))}
 
@@ -341,13 +353,11 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* ── Chain step add/edit modal ── */}
+      {/* ── Chain step add modal ── */}
       <Modal visible={!!chainModal} transparent animationType="fade" onRequestClose={() => setChainModal(null)}>
         <View style={s.overlay}>
           <View style={s.modalBox}>
-            <Text style={s.modalTitle}>
-              {chainModal?.stepIndex !== null ? 'Επεξεργασία βήματος' : 'Νέο βήμα αλυσίδας'}
-            </Text>
+            <Text style={s.modalTitle}>Νέο βήμα αλυσίδας</Text>
 
             <Text style={s.formLabel}>Όνομα φαρμάκου</Text>
             <TextInput
@@ -543,37 +553,27 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     minHeight: 52,
   },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  stepNameStatic: {
-    color: '#cdd6f4',
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
-  },
-  stepBodyStatic: {
-    color: '#a6adc8',
-    fontSize: 14,
-  },
-  tapToEdit: {
-    color: '#44475a',
-    fontSize: 11,
-    marginTop: 2,
-  },
   chainStepRemove: { color: '#585b70', fontSize: 22, lineHeight: 24 },
 
   // ── Chain connector ──
   chainConnector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     marginVertical: 2,
   },
   chainLine: { flex: 1, height: 1, backgroundColor: '#2a2a3e' },
-  chainDelay: { color: '#585b70', fontSize: 12 },
+  chainDelayInput: {
+    color: '#a6adc8',
+    fontSize: 13,
+    backgroundColor: '#2a2a3e',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    minWidth: 36,
+    textAlign: 'center',
+  },
+  chainDelaySuffix: { color: '#585b70', fontSize: 12 },
 
   addStepBtn: {
     borderRadius: 8,
