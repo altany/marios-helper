@@ -44,7 +44,11 @@ const androidTriggerBase = { channelId: CHANNEL_ID };
 const snooze_pick = {
   identifier: 'SNOOZE_PICK',
   buttonTitle: 'Αργότερα',
-  options: { opensAppToForeground: true },
+  // Keep opensAppToForeground false so the action works from a smartwatch
+  // (e.g. Garmin Fenix) without forcing the phone app to the foreground.
+  // Fixed 10-min snooze is applied directly; the time-picker modal is only
+  // shown when the user taps the notification body (DEFAULT_ACTION_IDENTIFIER).
+  options: { opensAppToForeground: false },
 };
 
 const next = {
@@ -380,18 +384,21 @@ export const usePushNotifications = () => {
 
     const actionIdentifier = response.actionIdentifier;
 
-    if (
-      actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER ||
-      actionIdentifier === 'SNOOZE_PICK'
-    ) {
-      // DEFAULT_ACTION_IDENTIFIER = user tapped the notification body
-      // SNOOZE_PICK = user tapped "Αργότερα" in the shade (opens app for wheel picker)
+    if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+      // User tapped the notification body on the phone — show the time-picker modal.
       console.log('showing modal for action:', actionIdentifier);
       const alertResponse = await showActionModal(body, hour, hasChain, medication, remainingChain as ChainStep[], categoryIdentifier);
       console.log('User selected:', alertResponse);
       if (alertResponse === 'BACKGROUND') return;
       response.actionIdentifier = alertResponse;
       await handleNotificationResponse(response, true);
+      return;
+    }
+
+    if (actionIdentifier === 'SNOOZE_PICK') {
+      // User tapped "Αργότερα" button — apply a fixed 10-min snooze directly.
+      // This works from a smartwatch without needing the phone app in foreground.
+      await processAction('SNOOZE', medication, body, categoryIdentifier, hour, hasChain, remainingChain as ChainStep[], identifier);
       return;
     }
 
