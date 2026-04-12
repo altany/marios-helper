@@ -2,12 +2,13 @@ import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Device from 'expo-device';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMedicationSettings, DEFAULT_SETTINGS, ChainStep } from './medicationSettings';
 
-// Tracks the last notification identifier processed, to prevent double-handling
-// when both getLastNotificationResponseAsync and the response listener fire.
-const HANDLED_NOTIFICATION_KEY = 'lastHandledNotificationId';
+// In-memory set of notification identifiers already processed this session.
+// Using a Set (synchronous) instead of AsyncStorage (async) prevents the race
+// condition where both getLastNotificationResponseAsync and the response listener
+// pass the guard simultaneously before either has written to storage.
+const handledNotificationIds = new Set<string>();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -280,6 +281,14 @@ export const usePushNotifications = () => {
         : parseInt(actionIdentifier.split('_')[1]);
       const seconds = minutes * 60;
       console.log(`Snoozing ${medication} for ${hour}:00 by ${minutes} minutes`);
+      // Cancel any already-scheduled one-shot notifications for this medication
+      // before adding the new snooze, so duplicates can never stack up.
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      await Promise.all(
+        scheduled
+          .filter(n => n.content.data?.medication === medication && !(n.trigger as any)?.repeats)
+          .map(n => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+      );
       await Notifications.scheduleNotificationAsync({
         content: {
           body,
@@ -297,6 +306,13 @@ export const usePushNotifications = () => {
         const nextStepChains = rest.length > 0 &&
           (nextStep.chainAtHours == null || nextStep.chainAtHours.includes(hour));
         console.log(`Scheduling ${nextStep.name} after ${medication} for ${hour}:00, chains further: ${nextStepChains}`);
+        // Cancel any pending one-shot notifications for this chain step before scheduling.
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+          scheduled
+            .filter(n => n.content.data?.medication === nextStep.id && !(n.trigger as any)?.repeats)
+            .map(n => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+        );
         await Notifications.scheduleNotificationAsync({
           content: {
             ...notificationCommonContent,
@@ -343,16 +359,17 @@ export const usePushNotifications = () => {
 
     const { medication, hasChain = false, remainingChain = [] } = data;
 
-    // Guard: skip if this notification was already handled (prevents double-firing
-    // when both getLastNotificationResponseAsync and the response listener trigger
-    // for the same notification on app resume).
+    // Guard: skip if this notification was already handled this session.
+    // Prevents double-firing when both getLastNotificationResponseAsync and the
+    // response listener trigger for the same notification on app resume.
+    // Using an in-memory Set (synchronous) to avoid the AsyncStorage race where
+    // both handlers pass the guard before either has written the handled ID.
     if (!skipGuard) {
-      const lastHandledId = await AsyncStorage.getItem(HANDLED_NOTIFICATION_KEY);
-      if (lastHandledId === identifier) {
+      if (handledNotificationIds.has(identifier)) {
         console.log('Notification already handled, skipping:', identifier);
         return;
       }
-      await AsyncStorage.setItem(HANDLED_NOTIFICATION_KEY, identifier);
+      handledNotificationIds.add(identifier);
     }
 
     // Extract the hour — daily triggers store it in dateComponents, others in data.
