@@ -285,12 +285,15 @@ export const usePushNotifications = () => {
         : parseInt(actionIdentifier.split('_')[1]);
       const seconds = minutes * 60;
       console.log(`Snoozing ${medication} for ${hour}:00 by ${minutes} minutes`);
-      // Cancel any already-scheduled one-shot notifications for this medication
-      // before adding the new snooze, so duplicates can never stack up.
+      // Cancel any already-scheduled one-shot (timeInterval) notifications for this
+      // medication before adding the new snooze, so duplicates can never stack up.
+      // Must filter by trigger.type === 'timeInterval' — daily recurring notifications
+      // have type 'daily' and no 'repeats' field, so a !repeats check would wrongly
+      // cancel them too.
       const scheduled = await Notifications.getAllScheduledNotificationsAsync();
       await Promise.all(
         scheduled
-          .filter(n => n.content.data?.medication === medication && !(n.trigger as any)?.repeats)
+          .filter(n => n.content.data?.medication === medication && n.trigger.type === 'timeInterval')
           .map(n => Notifications.cancelScheduledNotificationAsync(n.identifier)),
       );
       await Notifications.scheduleNotificationAsync({
@@ -314,7 +317,7 @@ export const usePushNotifications = () => {
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         await Promise.all(
           scheduled
-            .filter(n => n.content.data?.medication === nextStep.id && !(n.trigger as any)?.repeats)
+            .filter(n => n.content.data?.medication === nextStep.id && n.trigger.type === 'timeInterval')
             .map(n => Notifications.cancelScheduledNotificationAsync(n.identifier)),
         );
         await Notifications.scheduleNotificationAsync({
