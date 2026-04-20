@@ -299,7 +299,7 @@ export const usePushNotifications = () => {
       await Notifications.scheduleNotificationAsync({
         content: {
           body,
-          data: { medication, hour, hasChain, remainingChain },
+          data: { medication, hour, hasChain, remainingChain, fireAt: Date.now() + seconds * 1000 },
           categoryIdentifier,
           ...notificationCommonContent,
         },
@@ -325,7 +325,7 @@ export const usePushNotifications = () => {
             ...notificationCommonContent,
             categoryIdentifier: nextStepChains ? 'next-category' : 'complete-category',
             body: nextStep.body,
-            data: { medication: nextStep.id, hour, hasChain: nextStepChains, remainingChain: nextStepChains ? rest : [] },
+            data: { medication: nextStep.id, hour, hasChain: nextStepChains, remainingChain: nextStepChains ? rest : [], fireAt: Date.now() + nextStep.delayMinutes * 60 * 1000 },
           },
           trigger: { ...androidTriggerBase, seconds: nextStep.delayMinutes * 60 },
         });

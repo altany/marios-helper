@@ -9,8 +9,17 @@ import { getColors } from '../theme';
 const formatTime = (hour: number, minute: number = 0) =>
   `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
-const formatFireTime = (secondsFromNow: number) => {
-  const d = new Date(Date.now() + secondsFromNow * 1000);
+const formatFireTime = (n: { trigger: any; content: { data?: any } }): string => {
+  // Use the stored fireAt timestamp if available — it's set at schedule time so
+  // it stays accurate no matter when the list is refreshed or how many snoozes
+  // have stacked up.
+  const fireAt: number | undefined = n.content.data?.fireAt;
+  if (fireAt) {
+    const d = new Date(fireAt);
+    return formatTime(d.getHours(), d.getMinutes());
+  }
+  // Fallback for notifications scheduled before this field was added.
+  const d = new Date(Date.now() + (n.trigger.seconds ?? 0) * 1000);
   return formatTime(d.getHours(), d.getMinutes());
 };
 
@@ -134,7 +143,7 @@ export default function NotificationsScreen() {
               <View key={i} style={[s.card, { backgroundColor: c.card, borderColor: c.cardBorder }]}>
                 <View style={[s.timeBadge, { backgroundColor: c.warning + '22' }]}>
                   <Text style={[s.timeText, { color: c.warning }]}>
-                    ⏱ {formatFireTime(trigger.seconds ?? 0)}
+                    ⏱ {formatFireTime(n)}
                   </Text>
                 </View>
                 <Text style={[s.cardBody, { color: c.text }]} numberOfLines={2}>
