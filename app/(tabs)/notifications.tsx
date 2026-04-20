@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, RefreshControl, Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { useFocusEffect } from 'expo-router';
 import { useScheduledNotifications } from '../services/notifications';
 import { getMedicationSettings, MedicationSchedule } from '../services/medicationSettings';
@@ -26,6 +27,24 @@ export default function NotificationsScreen() {
 
   const { scheduledNotifications, getScheduledNotifications, resetNotifications, disableNotifications, test } =
     useScheduledNotifications();
+
+  const handleComplete = (identifier: string, body: string) => {
+    Alert.alert(
+      'Ολοκλήρωση',
+      body,
+      [
+        { text: 'Άκυρο', style: 'cancel' },
+        {
+          text: 'Ολοκλήρωση',
+          style: 'destructive',
+          onPress: async () => {
+            await Notifications.cancelScheduledNotificationAsync(identifier);
+            getScheduledNotifications();
+          },
+        },
+      ],
+    );
+  };
 
   const daily = scheduledNotifications
     .filter(n => n.trigger.type === 'daily')
@@ -121,6 +140,12 @@ export default function NotificationsScreen() {
                 <Text style={[s.cardBody, { color: c.text }]} numberOfLines={2}>
                   {n.content.body}
                 </Text>
+                <TouchableOpacity
+                  style={[s.completeBtn, { borderColor: c.accent }]}
+                  onPress={() => handleComplete(n.identifier, n.content.body ?? '')}
+                >
+                  <Text style={[s.completeBtnText, { color: c.accent }]}>✓</Text>
+                </TouchableOpacity>
               </View>
             );
           })}
@@ -178,6 +203,8 @@ const s = StyleSheet.create({
   timeBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, minWidth: 62, alignItems: 'center' },
   timeText: { fontSize: 14, fontWeight: '700' },
   cardBody: { flex: 1, fontSize: 14, lineHeight: 20 },
+  completeBtn: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
+  completeBtnText: { fontSize: 16, fontWeight: '700' },
   actions: { marginTop: 24, gap: 10 },
   actionRow: { flexDirection: 'row', gap: 10 },
   btn: { borderRadius: 12, padding: 14, alignItems: 'center' },
