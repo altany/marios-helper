@@ -2,13 +2,22 @@ import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Device from 'expo-device';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMedicationSettings, DEFAULT_SETTINGS, ChainStep } from './medicationSettings';
 
-// In-memory set of notification identifiers already processed this session.
-// Using a Set (synchronous) instead of AsyncStorage (async) prevents the race
-// condition where both getLastNotificationResponseAsync and the response listener
-// pass the guard simultaneously before either has written to storage.
+// Two-layer dedup guard:
+//
+// 1. In-memory Set (synchronous) — prevents within-session race conditions where
+//    both getLastNotificationResponseAsync and the response listener pass the guard
+//    simultaneously before either has written to storage.
+//
+// 2. AsyncStorage (persistent) — prevents cross-session re-processing. Daily
+//    recurring notifications reuse the same identifier every day, and
+//    getLastNotificationResponseAsync() returns the last response even across app
+//    restarts. Without persistence an old COMPLETE/SNOOZE action would be
+//    re-applied on the next launch, silently dismissing today's notification.
 const handledNotificationIds = new Set<string>();
+const HANDLED_NOTIFICATION_KEY = 'lastHandledNotificationId';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -366,17 +375,23 @@ export const usePushNotifications = () => {
 
     const { medication, hasChain = false, remainingChain = [] } = data;
 
-    // Guard: skip if this notification was already handled this session.
-    // Prevents double-firing when both getLastNotificationResponseAsync and the
-    // response listener trigger for the same notification on app resume.
-    // Using an in-memory Set (synchronous) to avoid the AsyncStorage race where
-    // both handlers pass the guard before either has written the handled ID.
+    // Two-layer guard — see module-level comment for rationale.
     if (!skipGuard) {
+      // Layer 1: synchronous Set check — no await, so no race between listeners.
       if (handledNotificationIds.has(identifier)) {
-        console.log('Notification already handled, skipping:', identifier);
+        console.log('Notification already handled this session, skipping:', identifier);
         return;
       }
       handledNotificationIds.add(identifier);
+
+      // Layer 2: persistent AsyncStorage check — catches cross-session re-processing
+      // (same recurring identifier, previous session's action re-applied on launch).
+      const lastHandledId = await AsyncStorage.getItem(HANDLED_NOTIFICATION_KEY);
+      if (lastHandledId === identifier) {
+        console.log('Notification already handled in previous session, skipping:', identifier);
+        return;
+      }
+      await AsyncStorage.setItem(HANDLED_NOTIFICATION_KEY, identifier);
     }
 
     // Extract the hour — daily triggers store it in dateComponents, others in data.
