@@ -1,576 +1,216 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { Alert, Platform, Share, Text, View } from 'react-native';
+import { formatMinutes } from '../../src/lib/time';
+import { defaultData } from '../../src/model/defaults';
+import { AppData, Settings } from '../../src/model/types';
+import { act } from '../../src/notify/commands';
+import { Check, runChecks, sendTestNotification } from '../../src/notify/health';
+import { syncNotifications } from '../../src/notify/sync';
+import { getData, replaceAll, useData } from '../../src/store/store';
 import {
-  Animated, View, Text, TextInput, Switch, TouchableOpacity,
-  ScrollView, StyleSheet, Modal, Alert, ActivityIndicator,
-  useColorScheme,
-} from 'react-native';
-import {
-  getMedicationSettings, saveMedicationSettings,
-  DEFAULT_SETTINGS, MedicationSchedule, ChainStep,
-} from '../services/medicationSettings';
-import { resetAndRescheduleNotifications } from '../services/notifications';
-import { getColors } from '../theme';
+  Button,
+  Card,
+  Choice,
+  Divider,
+  Field,
+  Loading,
+  s,
+  Screen,
+  SectionTitle,
+  Sheet,
+  SwitchRow,
+} from '../../src/ui/components';
+import { useColors } from '../../src/ui/theme';
+import { toast } from '../../src/ui/toast';
 
-const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
-const genId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-
-// Returns the hours at which chain step `idx` can actually fire.
-// = med.chainAtHours ∩ chain[0].chainAtHours ∩ ... ∩ chain[idx-1].chainAtHours
-const getEffectiveHours = (med: MedicationSchedule, idx: number): number[] => {
-  let hours = med.chainAtHours ?? [];
-  for (let i = 0; i < idx; i++) {
-    const stepHours = med.chain?.[i]?.chainAtHours;
-    if (stepHours != null) hours = hours.filter(h => stepHours.includes(h));
-  }
-  return hours;
-};
-
-type ChainForm = { name: string; body: string; delayMinutes: string };
-const emptyChainForm = (): ChainForm => ({ name: '', body: '', delayMinutes: '20' });
+const minutes = (list: number[], zero?: string) =>
+  list.map(m => ({ value: m, label: m === 0 && zero ? zero : formatMinutes(m) }));
 
 export default function SettingsScreen() {
-  const scheme = useColorScheme() ?? 'dark';
-  const c = getColors(scheme);
+  const c = useColors();
+  const data = useData();
+  const [checks, setChecks] = useState<Check[] | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
 
-  const [settings, setSettings] = useState<MedicationSchedule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const toastOpacity = useRef(new Animated.Value(0)).current;
-
-  const showToast = (msg: string, ok: boolean) => {
-    setToast({ msg, ok });
-    Animated.sequence([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(2000),
-      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => setToast(null));
-  };
-
-  const [addHourFor, setAddHourFor] = useState<string | null>(null);
-
-  const [chainModal, setChainModal] = useState<{ medId: string } | null>(null);
-  const [chainForm, setChainForm] = useState<ChainForm>(emptyChainForm());
-
-  const [newMedModal, setNewMedModal] = useState(false);
-  const [newMedForm, setNewMedForm] = useState({ name: '', body: '' });
-
-  useEffect(() => {
-    getMedicationSettings().then(s => {
-      setSettings(s);
-      setLoading(false);
-    });
+  const refreshChecks = useCallback(() => {
+    runChecks()
+      .then(setChecks)
+      .catch(() => setChecks([]));
   }, []);
+  useFocusEffect(refreshChecks);
 
-  // ── Medication mutations ──────────────────────────────────────────
+  if (!data) return <Loading />;
+  const set = (patch: Partial<Settings>) =>
+    act(d => {
+      d.settings = { ...d.settings, ...patch };
+    });
 
-  const toggleEnabled = (id: string) =>
-    setSettings(prev => prev.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m));
-
-  const updateField = (id: string, field: 'name' | 'body' | 'groupTitle', value: string) =>
-    setSettings(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
-
-  const removeMed = (id: string) =>
-    Alert.alert('Διαγραφή', 'Να διαγραφεί αυτό το φάρμακο;', [
-      { text: 'Άκυρο', style: 'cancel' },
-      { text: 'Διαγραφή', style: 'destructive', onPress: () =>
-        setSettings(prev => prev.filter(m => m.id !== id))
-      },
-    ]);
-
-  const confirmAddMed = () => {
-    if (!newMedForm.name.trim()) return;
-    setSettings(prev => [...prev, {
-      id: genId(),
-      name: newMedForm.name.trim(),
-      body: newMedForm.body.trim(),
-      times: [],
-      enabled: true,
-    }]);
-    setNewMedModal(false);
-    setNewMedForm({ name: '', body: '' });
+  const exportData = async () => {
+    const json = JSON.stringify(await getData(), null, 1);
+    await Share.share({ title: 'Mario backup', message: json });
   };
 
-  // ── Time mutations ────────────────────────────────────────────────
-
-  const removeTime = (id: string, hour: number) =>
-    setSettings(prev => prev.map(m =>
-      m.id === id ? {
-        ...m,
-        times: m.times.filter(t => t !== hour),
-        chainAtHours: m.chainAtHours?.filter(h => h !== hour),
-      } : m,
-    ));
-
-  const addTime = (id: string, hour: number) => {
-    setSettings(prev => prev.map(m =>
-      m.id === id ? { ...m, times: [...m.times, hour].sort((a, b) => a - b) } : m,
-    ));
-    setAddHourFor(null);
-  };
-
-  // ── Chain hour toggles ────────────────────────────────────────────
-
-  const toggleChainHour = (medId: string, hour: number) =>
-    setSettings(prev => prev.map(m => {
-      if (m.id !== medId) return m;
-      const cur = m.chainAtHours ?? [];
-      const updated = cur.includes(hour)
-        ? cur.filter(h => h !== hour)
-        : [...cur, hour].sort((a, b) => a - b);
-      return { ...m, chainAtHours: updated };
-    }));
-
-  const toggleChainStepHour = (medId: string, stepIndex: number, hour: number) =>
-    setSettings(prev => prev.map(m => {
-      if (m.id !== medId) return m;
-      const chain = (m.chain ?? []).map((step, i) => {
-        if (i !== stepIndex) return step;
-        const cur = step.chainAtHours ?? [];
-        const updated = cur.includes(hour)
-          ? cur.filter(h => h !== hour)
-          : [...cur, hour].sort((a, b) => a - b);
-        return { ...step, chainAtHours: updated };
-      });
-      return { ...m, chain };
-    }));
-
-  // ── Chain step mutations ──────────────────────────────────────────
-
-  const openAddStep = (medId: string) => {
-    setChainModal({ medId });
-    setChainForm(emptyChainForm());
-  };
-
-  const saveChainStep = () => {
-    if (!chainModal || !chainForm.name.trim()) return;
-    const { medId } = chainModal;
-    const step: ChainStep = {
-      id: genId(),
-      name: chainForm.name.trim(),
-      body: chainForm.body.trim(),
-      delayMinutes: Math.max(1, parseInt(chainForm.delayMinutes) || 20),
-    };
-    setSettings(prev => prev.map(m => {
-      if (m.id !== medId) return m;
-      return { ...m, chain: [...(m.chain ?? []), step] };
-    }));
-    setChainModal(null);
-  };
-
-  const updateChainStep = (medId: string, stepIndex: number, field: keyof ChainStep, value: string) =>
-    setSettings(prev => prev.map(m => {
-      if (m.id !== medId) return m;
-      const chain = (m.chain ?? []).map((step, i) => {
-        if (i !== stepIndex) return step;
-        if (field === 'delayMinutes') return { ...step, delayMinutes: Math.max(1, parseInt(value) || 1) };
-        return { ...step, [field]: value };
-      });
-      return { ...m, chain };
-    }));
-
-  const removeChainStep = (medId: string, stepIndex: number) =>
-    setSettings(prev => prev.map(m => {
-      if (m.id !== medId) return m;
-      const chain = (m.chain ?? []).filter((_, i) => i !== stepIndex);
-      return {
-        ...m,
-        chain: chain.length > 0 ? chain : undefined,
-        chainAtHours: chain.length > 0 ? m.chainAtHours : undefined,
-      };
-    }));
-
-  // ── Save / reset ─────────────────────────────────────────────────
-
-  const save = async () => {
-    setSaving(true);
+  const importData = async () => {
     try {
-      await saveMedicationSettings(settings);
-      await resetAndRescheduleNotifications();
-      showToast('Αποθηκεύτηκε', true);
-    } catch (e) {
-      showToast('Σφάλμα αποθήκευσης', false);
-    } finally {
-      setSaving(false);
+      const parsed = JSON.parse(importText) as AppData;
+      if (!Array.isArray(parsed.meds) || !Array.isArray(parsed.routines)) throw new Error('bad');
+      await replaceAll(parsed);
+      await syncNotifications();
+      setImportOpen(false);
+      setImportText('');
+      toast('Τα δεδομένα επανήλθαν');
+    } catch {
+      Alert.alert('Δεν έγινε', 'Το κείμενο δεν είναι αντίγραφο ασφαλείας αυτής της εφαρμογής.');
     }
   };
 
-  const resetToDefaults = () =>
-    Alert.alert('Επαναφορά', 'Να επαναφερθούν οι προεπιλεγμένες ρυθμίσεις;', [
+  const resetAll = () =>
+    Alert.alert('Επαναφορά', 'Να σβηστούν όλα (φάρμακα, πρόγραμμα, ιστορικό) και να ξεκινήσεις από την αρχή;', [
       { text: 'Άκυρο', style: 'cancel' },
-      { text: 'Επαναφορά', style: 'destructive', onPress: () => setSettings(DEFAULT_SETTINGS) },
+      {
+        text: 'Σβήσιμο όλων',
+        style: 'destructive',
+        onPress: async () => {
+          await replaceAll(defaultData(Date.now()));
+          await syncNotifications();
+          toast('Έγινε επαναφορά');
+        },
+      },
     ]);
 
-  // ─────────────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <View style={[l.fill, l.centered, { backgroundColor: c.bg }]}>
-        <ActivityIndicator color={c.accent} size="large" />
-      </View>
-    );
-  }
-
-  const currentMed = settings.find(m => m.id === addHourFor);
-  const availableHours = currentMed
-    ? Array.from({ length: 24 }, (_, i) => i).filter(h => !currentMed.times.includes(h))
-    : [];
+  const problems = checks?.filter(ch => !ch.ok).length ?? 0;
 
   return (
-    <View style={[l.fill, { backgroundColor: c.bg }]}>
-    <ScrollView style={l.fill} contentContainerStyle={l.content}>
-      <Text style={[l.pageTitle, { color: c.text }]}>Ρυθμίσεις φαρμάκων</Text>
+    <Screen title="Ρυθμίσεις">
+      <SectionTitle>Ειδοποιήσεις</SectionTitle>
+      <Card style={{ gap: 14 }}>
+        <Field
+          label="Όνομα κατοικιδίου"
+          defaultValue={data.settings.petName}
+          onEndEditing={e => {
+            const petName = e.nativeEvent.text.trim();
+            if (petName && petName !== data.settings.petName) set({ petName });
+          }}
+          hint="Φαίνεται στον τίτλο κάθε ειδοποίησης."
+        />
+        <Divider />
+        <Text style={[s.label, { color: c.textSoft }]}>Κουμπί «Αργότερα» στην ειδοποίηση</Text>
+        <Choice
+          options={minutes([5, 10, 15, 20, 30, 60])}
+          value={data.settings.snoozeMin}
+          onChange={snoozeMin => set({ snoozeMin })}
+        />
+        <Divider />
+        <Text style={[s.label, { color: c.textSoft }]}>Ξαναχτυπάει αν δεν απαντήσω κάθε</Text>
+        <Choice
+          options={minutes([0, 5, 10, 15, 30], 'Ποτέ')}
+          value={data.settings.repeatMin}
+          onChange={repeatMin => set({ repeatMin })}
+        />
+        <Divider />
+        <Text style={[s.label, { color: c.textSoft }]}>Η δόση θεωρείται χαμένη μετά από</Text>
+        <Choice
+          options={minutes([60, 120, 240, 360, 720])}
+          value={data.settings.missAfterMin}
+          onChange={missAfterMin => set({ missAfterMin })}
+        />
+        <Text style={[s.hint, { color: c.textMuted }]}>
+          Μετά από αυτό η ειδοποίηση φεύγει. Μπορείς πάντα να τη σημειώσεις από την οθόνη «Σήμερα».
+        </Text>
+        <Divider />
+        <SwitchRow
+          label="Δεν σβήνει με σύρσιμο"
+          hint="Αν τη σύρεις χωρίς να απαντήσεις, ξαναεμφανίζεται αθόρυβα."
+          value={data.settings.sticky}
+          onChange={sticky => set({ sticky })}
+        />
+        <SwitchRow
+          label="Αντίστροφη μέτρηση"
+          hint="Μετά το «Το έδωσα» δείχνει πόσο μένει για το επόμενο φάρμακο της σειράς."
+          value={data.settings.countdown}
+          onChange={countdown => set({ countdown })}
+        />
+        <SwitchRow
+          label="Επίμονος ήχος"
+          hint="Ο ήχος επαναλαμβάνεται μέχρι να δεις την ειδοποίηση. Σαν ξυπνητήρι."
+          value={data.settings.insistent}
+          onChange={insistent => set({ insistent })}
+        />
+      </Card>
 
-      {settings.map(med => (
-        <View key={med.id} style={[l.card, { backgroundColor: c.card }]}>
-
-          {/* ── Group title + controls ── */}
-          <View style={l.cardHeader}>
-            <TextInput
-              style={[l.groupTitleInput, { backgroundColor: c.inputBg, color: c.text }]}
-              value={med.groupTitle ?? ''}
-              onChangeText={v => updateField(med.id, 'groupTitle', v)}
-              placeholder="Τίτλος ομάδας"
-              placeholderTextColor={c.placeholder}
-            />
-            <Switch
-              value={med.enabled}
-              onValueChange={() => toggleEnabled(med.id)}
-              trackColor={{ false: c.border, true: c.accent }}
-              thumbColor="#fff"
-            />
-            <TouchableOpacity onPress={() => removeMed(med.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={[l.deleteIcon, { color: c.textMuted }]}>🗑</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Times ── */}
-          <Text style={[l.label, { color: c.textSecondary }]}>Ώρες</Text>
-          <View style={l.chipRow}>
-            {med.times.map(hour => (
-              <View key={hour} style={[l.chip, { backgroundColor: c.accent }]}>
-                <Text style={l.chipText}>{formatHour(hour)}</Text>
-                <TouchableOpacity onPress={() => removeTime(med.id, hour)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={l.chipRemove}>×</Text>
-                </TouchableOpacity>
+      {Platform.OS !== 'web' && (
+        <>
+          <SectionTitle>
+            Έλεγχος {problems > 0 ? `· ${problems} ${problems === 1 ? 'θέμα' : 'θέματα'}` : ''}
+          </SectionTitle>
+          <Card style={{ gap: 14 }}>
+            <Text style={[s.hint, { color: c.textSoft }]}>
+              Για να έρχονται οι ειδοποιήσεις στην ώρα τους, ακόμα κι όταν η εφαρμογή είναι κλειστή.
+            </Text>
+            {checks?.map(ch => (
+              <View key={ch.key} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                <Ionicons name={ch.ok ? 'checkmark-circle' : 'warning'} size={22} color={ch.ok ? c.success : c.warn} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={[s.rowLabel, { color: c.text, fontSize: 15 }]}>{ch.label}</Text>
+                  <Text style={[s.hint, { color: c.textMuted }]}>{ch.help}</Text>
+                  {ch.fix && (
+                    <Button
+                      small
+                      kind={ch.ok ? 'ghost' : 'primary'}
+                      label={ch.fixLabel ?? 'Άνοιγμα'}
+                      style={{ alignSelf: 'flex-start' }}
+                      onPress={async () => {
+                        await ch.fix!();
+                        setTimeout(refreshChecks, 800);
+                      }}
+                    />
+                  )}
+                </View>
               </View>
             ))}
-            {med.enabled && (
-              <TouchableOpacity style={[l.addChip, { borderColor: c.accent }]} onPress={() => setAddHourFor(med.id)}>
-                <Text style={[l.addChipText, { color: c.accent }]}>+ Ώρα</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* ── Chain: all steps with equal styling ── */}
-          <Text style={[l.label, { color: c.textSecondary }]}>
-            Φάρμακα <Text style={[l.labelHint, { color: c.textMuted }]}>(αλυσίδα)</Text>
-          </Text>
-
-          {/* Root medication */}
-          <View style={[l.medStep, { backgroundColor: c.inputBg }]}>
-            <TextInput
-              style={[l.stepNameInput, { backgroundColor: c.card, color: c.text }]}
-              value={med.name}
-              onChangeText={v => updateField(med.id, 'name', v)}
-              placeholder="Όνομα φαρμάκου"
-              placeholderTextColor={c.placeholder}
+            <Button
+              label="Δοκιμαστική ειδοποίηση σε 5″"
+              icon="notifications-outline"
+              onPress={async () => {
+                await sendTestNotification(5);
+                toast('Κλείσε την εφαρμογή και περίμενε 5 δευτερόλεπτα');
+              }}
             />
-            <TextInput
-              style={[l.stepBodyInput, { backgroundColor: c.card, color: c.textSecondary }, !med.enabled && l.inputDisabled]}
-              value={med.body}
-              onChangeText={v => updateField(med.id, 'body', v)}
-              multiline
-              editable={med.enabled}
-              placeholder="Δόση / κείμενο ειδοποίησης"
-              placeholderTextColor={c.placeholder}
-            />
-          </View>
+          </Card>
+        </>
+      )}
 
-          {/* Chain hour selector for root */}
-          {(med.chain?.length ?? 0) > 0 && med.times.length > 0 && (
-            <>
-              <Text style={[l.sublabel, { color: c.textMuted }]}>Αλυσίδα ενεργή στις:</Text>
-              <View style={l.chipRow}>
-                {med.times.map(hour => {
-                  const active = med.chainAtHours?.includes(hour) ?? false;
-                  return (
-                    <TouchableOpacity
-                      key={hour}
-                      style={[l.chip, active ? { backgroundColor: c.accent } : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.accent }]}
-                      onPress={() => toggleChainHour(med.id, hour)}
-                    >
-                      <Text style={[l.chipText, !active && { color: c.accent }]}>{formatHour(hour)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
+      <SectionTitle>Δεδομένα</SectionTitle>
+      <Card style={{ gap: 10 }}>
+        <Text style={[s.hint, { color: c.textSoft }]}>
+          Όλα μένουν μόνο σε αυτό το κινητό. Κράτα ένα αντίγραφο (π.χ. στείλ' το στον εαυτό σου) πριν αλλάξεις κινητό.
+        </Text>
+        <Button label="Αντίγραφο ασφαλείας" icon="share-outline" onPress={exportData} />
+        <Button label="Επαναφορά από αντίγραφο" icon="download-outline" onPress={() => setImportOpen(true)} />
+        <Button label="Σβήσιμο όλων" kind="danger" icon="trash-outline" onPress={resetAll} />
+      </Card>
 
-          {/* Chain steps */}
-          {(med.chain ?? []).map((step, idx) => (
-            <View key={step.id}>
-              <View style={l.chainConnector}>
-                <View style={[l.chainLine, { backgroundColor: c.border }]} />
-                <TextInput
-                  style={[l.chainDelayInput, { backgroundColor: c.inputBg, color: c.textSecondary }]}
-                  value={String(step.delayMinutes)}
-                  onChangeText={v => updateChainStep(med.id, idx, 'delayMinutes', v.replace(/[^0-9]/g, ''))}
-                  keyboardType="number-pad"
-                  selectTextOnFocus
-                />
-                <Text style={[l.chainDelaySuffix, { color: c.textMuted }]}>λεπτά</Text>
-                <View style={[l.chainLine, { backgroundColor: c.border }]} />
-                <TouchableOpacity onPress={() => removeChainStep(med.id, idx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={[l.chainStepRemove, { color: c.textMuted }]}>×</Text>
-                </TouchableOpacity>
-              </View>
+      <Text style={[s.hint, { color: c.textMuted, textAlign: 'center', marginTop: 8 }]}>
+        Mario · έκδοση {Constants.expoConfig?.version ?? '—'} · 🐾
+      </Text>
 
-              <View style={[l.medStep, { backgroundColor: c.inputBg }]}>
-                <TextInput
-                  style={[l.stepNameInput, { backgroundColor: c.card, color: c.text }]}
-                  value={step.name}
-                  onChangeText={v => updateChainStep(med.id, idx, 'name', v)}
-                  placeholder="Όνομα φαρμάκου"
-                  placeholderTextColor={c.placeholder}
-                />
-                <TextInput
-                  style={[l.stepBodyInput, { backgroundColor: c.card, color: c.textSecondary }]}
-                  value={step.body}
-                  onChangeText={v => updateChainStep(med.id, idx, 'body', v)}
-                  multiline
-                  placeholder="Δόση / κείμενο ειδοποίησης"
-                  placeholderTextColor={c.placeholder}
-                />
-              </View>
-
-              {/* Per-step chain hours (only if there's a next step) */}
-              {idx < (med.chain?.length ?? 0) - 1 && (() => {
-                const effectiveHours = getEffectiveHours(med, idx);
-                if (effectiveHours.length === 0) return null;
-                return (
-                  <>
-                    <Text style={[l.sublabel, { color: c.textMuted }]}>Αλυσίδα ενεργή στις:</Text>
-                    <View style={l.chipRow}>
-                      {effectiveHours.map(hour => {
-                        const active = step.chainAtHours == null || step.chainAtHours.includes(hour);
-                        return (
-                          <TouchableOpacity
-                            key={hour}
-                            style={[l.chip, active ? { backgroundColor: c.accent } : { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.accent }]}
-                            onPress={() => toggleChainStepHour(med.id, idx, hour)}
-                          >
-                            <Text style={[l.chipText, !active && { color: c.accent }]}>{formatHour(hour)}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </>
-                );
-              })()}
-            </View>
-          ))}
-
-          <TouchableOpacity style={[l.addStepBtn, { borderColor: c.border }]} onPress={() => openAddStep(med.id)}>
-            <Text style={[l.addStepBtnText, { color: c.textMuted }]}>+ Βήμα αλυσίδας</Text>
-          </TouchableOpacity>
-
-        </View>
-      ))}
-
-      <TouchableOpacity style={[l.addMedBtn, { borderColor: c.accent }]} onPress={() => setNewMedModal(true)}>
-        <Text style={[l.addMedBtnText, { color: c.accent }]}>+ Νέο φάρμακο</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={l.resetBtn} onPress={resetToDefaults}>
-        <Text style={[l.resetBtnText, { color: c.textMuted }]}>Επαναφορά προεπιλογών</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[l.saveBtn, { backgroundColor: c.accent }, saving && l.saveBtnDisabled]}
-        onPress={save}
-        disabled={saving}
-      >
-        <Text style={l.saveBtnText}>{saving ? 'Αποθήκευση...' : 'Αποθήκευση & Εφαρμογή'}</Text>
-      </TouchableOpacity>
-
-      {/* ── Hour picker modal ── */}
-      <Modal visible={!!addHourFor} transparent animationType="fade" onRequestClose={() => setAddHourFor(null)}>
-        <View style={[l.overlay, { backgroundColor: c.overlay }]}>
-          <View style={[l.modalBox, { backgroundColor: c.card }]}>
-            <Text style={[l.modalTitle, { color: c.text }]}>Επιλογή ώρας</Text>
-            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-              {availableHours.map(hour => (
-                <TouchableOpacity key={hour} style={[l.hourRow, { borderBottomColor: c.border }]} onPress={() => addHourFor && addTime(addHourFor, hour)}>
-                  <Text style={[l.hourRowText, { color: c.text }]}>{formatHour(hour)}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={l.cancelBtn} onPress={() => setAddHourFor(null)}>
-              <Text style={[l.cancelBtnText, { color: c.textMuted }]}>Άκυρο</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Chain step add modal ── */}
-      <Modal visible={!!chainModal} transparent animationType="fade" onRequestClose={() => setChainModal(null)}>
-        <View style={[l.overlay, { backgroundColor: c.overlay }]}>
-          <View style={[l.modalBox, { backgroundColor: c.card }]}>
-            <Text style={[l.modalTitle, { color: c.text }]}>Νέο βήμα αλυσίδας</Text>
-
-            <Text style={[l.formLabel, { color: c.textSecondary }]}>Όνομα φαρμάκου</Text>
-            <TextInput
-              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text }]}
-              value={chainForm.name}
-              onChangeText={v => setChainForm(f => ({ ...f, name: v }))}
-              placeholder="π.χ. Lacrimmune"
-              placeholderTextColor={c.placeholder}
-              autoFocus
-            />
-
-            <Text style={[l.formLabel, { color: c.textSecondary }]}>Δόση / κείμενο ειδοποίησης</Text>
-            <TextInput
-              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text, minHeight: 64 }]}
-              value={chainForm.body}
-              onChangeText={v => setChainForm(f => ({ ...f, body: v }))}
-              placeholder="π.χ. 1 κόκκος ρυζιού στο αριστερό μάτι"
-              placeholderTextColor={c.placeholder}
-              multiline
-            />
-
-            <Text style={[l.formLabel, { color: c.textSecondary }]}>Καθυστέρηση (λεπτά μετά το προηγούμενο)</Text>
-            <TextInput
-              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text }]}
-              value={chainForm.delayMinutes}
-              onChangeText={v => setChainForm(f => ({ ...f, delayMinutes: v.replace(/[^0-9]/g, '') }))}
-              keyboardType="number-pad"
-            />
-
-            <View style={l.modalBtnRow}>
-              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.inputBg }]} onPress={() => setChainModal(null)}>
-                <Text style={[l.cancelBtnText, { color: c.textMuted }]}>Άκυρο</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.accent }]} onPress={saveChainStep}>
-                <Text style={l.saveBtnText}>Αποθήκευση</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── New medication modal ── */}
-      <Modal visible={newMedModal} transparent animationType="fade" onRequestClose={() => setNewMedModal(false)}>
-        <View style={[l.overlay, { backgroundColor: c.overlay }]}>
-          <View style={[l.modalBox, { backgroundColor: c.card }]}>
-            <Text style={[l.modalTitle, { color: c.text }]}>Νέο φάρμακο</Text>
-
-            <Text style={[l.formLabel, { color: c.textSecondary }]}>Όνομα</Text>
-            <TextInput
-              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text }]}
-              value={newMedForm.name}
-              onChangeText={v => setNewMedForm(f => ({ ...f, name: v }))}
-              placeholder="π.χ. Αντιβίωση"
-              placeholderTextColor={c.placeholder}
-              autoFocus
-            />
-
-            <Text style={[l.formLabel, { color: c.textSecondary }]}>Δόση / κείμενο ειδοποίησης</Text>
-            <TextInput
-              style={[l.formInput, { backgroundColor: c.inputBg, color: c.text, minHeight: 64 }]}
-              value={newMedForm.body}
-              onChangeText={v => setNewMedForm(f => ({ ...f, body: v }))}
-              placeholder="π.χ. 1 δισκίο με νερό"
-              placeholderTextColor={c.placeholder}
-              multiline
-            />
-
-            <View style={l.modalBtnRow}>
-              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.inputBg }]} onPress={() => setNewMedModal(false)}>
-                <Text style={[l.cancelBtnText, { color: c.textMuted }]}>Άκυρο</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[l.modalBtn, { backgroundColor: c.accent }]} onPress={confirmAddMed}>
-                <Text style={l.saveBtnText}>Προσθήκη</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-    </ScrollView>
-
-    {toast && (
-      <Animated.View style={[l.toast, { backgroundColor: toast.ok ? c.accent : '#ff453a', opacity: toastOpacity }]}>
-        <Text style={l.toastText}>{toast.msg}</Text>
-      </Animated.View>
-    )}
-    </View>
+      <Sheet visible={importOpen} onClose={() => setImportOpen(false)} title="Επαναφορά από αντίγραφο">
+        <Text style={[s.hint, { color: c.textSoft }]}>
+          Επικόλλησε εδώ το κείμενο του αντιγράφου. Θα αντικαταστήσει ό,τι υπάρχει τώρα.
+        </Text>
+        <Field
+          label="Αντίγραφο"
+          value={importText}
+          onChangeText={setImportText}
+          multiline
+          placeholder='{"version":3,...}'
+        />
+        <Button label="Επαναφορά" kind="primary" icon="checkmark" onPress={importData} disabled={!importText.trim()} />
+      </Sheet>
+    </Screen>
   );
 }
-
-// Layout-only styles (no colors). Colors applied inline via `c`.
-const l = StyleSheet.create({
-  fill: { flex: 1 },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-  content: { padding: 16, paddingBottom: 48 },
-
-  pageTitle: { fontSize: 22, fontWeight: '700', marginBottom: 20, marginTop: 8 },
-
-  card: { borderRadius: 12, padding: 16, marginBottom: 16, gap: 10 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  groupTitleInput: {
-    flex: 1, fontSize: 17, fontWeight: '700',
-    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
-  },
-  deleteIcon: { fontSize: 18, marginLeft: 4 },
-
-  label: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 },
-  labelHint: { fontSize: 11, textTransform: 'none', letterSpacing: 0, fontWeight: '400' },
-  sublabel: { fontSize: 12, marginTop: 2 },
-  inputDisabled: { opacity: 0.4 },
-
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, gap: 6 },
-  chipText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  chipRemove: { color: '#ffffffcc', fontSize: 18, lineHeight: 18 },
-  addChip: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
-  addChipText: { fontSize: 14, fontWeight: '600' },
-
-  medStep: { borderRadius: 10, padding: 12, gap: 8 },
-  stepNameInput: { fontSize: 15, fontWeight: '600', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  stepBodyInput: { fontSize: 14, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, minHeight: 52 },
-
-  chainConnector: { flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 2 },
-  chainLine: { flex: 1, height: 1 },
-  chainDelayInput: { fontSize: 13, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, minWidth: 36, textAlign: 'center' },
-  chainDelaySuffix: { fontSize: 12 },
-  chainStepRemove: { fontSize: 22, lineHeight: 24 },
-
-  addStepBtn: { borderRadius: 8, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', marginTop: 2 },
-  addStepBtnText: { fontSize: 13 },
-
-  addMedBtn: { borderRadius: 10, padding: 14, alignItems: 'center', borderWidth: 1, marginBottom: 8 },
-  addMedBtnText: { fontSize: 15, fontWeight: '600' },
-
-  resetBtn: { alignSelf: 'center', padding: 10, marginVertical: 4 },
-  resetBtnText: { fontSize: 13 },
-  saveBtn: { borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 8 },
-  saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
-  toast: { position: 'absolute', bottom: 32, alignSelf: 'center', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 },
-  toastText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-
-  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalBox: { borderRadius: 12, padding: 20, width: '88%', maxHeight: '85%' },
-  modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: 14, textAlign: 'center' },
-  hourRow: { paddingVertical: 14, borderBottomWidth: 1 },
-  hourRowText: { fontSize: 16, textAlign: 'center' },
-  cancelBtn: { marginTop: 12, alignItems: 'center', padding: 8 },
-  cancelBtnText: { fontSize: 15 },
-  formLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 4 },
-  formInput: { borderRadius: 8, padding: 10, fontSize: 14 },
-  modalBtnRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  modalBtn: { flex: 1, borderRadius: 8, padding: 12, alignItems: 'center' },
-});

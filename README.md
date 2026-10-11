@@ -1,33 +1,56 @@
 # Mario's Helper 🐕 💊
 
-Meet Mario, my adorable furry friend who needs a bit of extra care! This app manages Mario's daily medication schedule - multiple eye drops at specific times, with timed chains between them and some painkiller.
+Meet Mario, my adorable furry friend who needs a bit of extra care! This app reminds us to give Mario his medicines on time: eye drops, ointments and painkillers, some of them one after the other with a wait in between.
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/5eac1eae-370d-4c6e-ae34-c27cc136c2dd" height="600" alt="Mario">
 </div>
 
-## Features
+## What it does
 
-- **Scheduled notifications** - daily reminders at configurable times, with sound and vibration
-- **Medication chains** - after taking one medication, a follow-up notification fires after a configurable delay (e.g. Lacrimmune 20 min after Hylogel)
-- **N-step chains** - chains can have multiple steps, each with its own delay and selectable hours
-- **Per-step hour control** - each chain step only shows the hours that are actually reachable from the previous step
-- **Fully customisable settings** - add/remove medications, adjust times, configure chains, all without touching code
-- **Truly sticky notifications** - notifications cannot be dismissed by swiping; if the OEM allows swipe-dismiss (OnePlus, Samsung etc.), a `BroadcastReceiver` immediately re-posts the full notification including action buttons
-- **In-app modal** - when a notification fires while the app is open, a non-dismissable modal appears instead of the system banner
-- **Snooze** - scrollable picker for snooze duration (5 min – 2 hours)
-- **Schedule summary** - the notifications tab shows a live preview of the full medication schedule
-- **Light/dark mode** — respects the device colour scheme
+- **Σήμερα (Today)** – what is due now, with big "Το έδωσα" / "Αργότερα" buttons, the next medicine, and the whole day. Go back to see what was given, or forward to see (and change) the coming days.
+- **Chains of medicines** – a routine is a list of medicines given one after the other, e.g. *Hylogel → 20′ → Lacrimmune*. The next reminder comes 20 minutes after you tap "Το έδωσα", not 20 minutes after the planned time. A quiet countdown shows how long is left.
+- **Change one reminder only** – tap any future dose to move it to another time just that day, skip it, or put it back. "Αλλαγή ώρας για όλη τη μέρα" moves every dose of a day at once (e.g. when you woke up late).
+- **Sticky notifications** – a reminder stays until you answer it. If it is swiped away it comes back quietly. It rings again every few minutes if nobody answers (you choose how often), and goes away by itself when the dose counts as missed.
+- **Buttons work with the app closed** – "Το έδωσα" and "Αργότερα" on the notification (or on a smartwatch) work without opening the app, and the next medicine of the chain is scheduled right away.
+- **Πρόγραμμα (Schedule)** – a preview of a normal day, the list of routines, and the next reminders.
+- **Συνταγή (Prescription)** – the medicines with dose and instructions, treatment start/end dates (no reminders after the end), the vet's phone and next check-up, and free notes.
+- **Ρυθμίσεις (Settings)** – snooze time, repeat time, when a dose counts as missed, sticky on/off, countdown, alarm-like sound, plus a **check** of everything that can stop reminders from arriving (permissions, exact alarms, battery saving, phone-maker settings) with a button to fix each one, and a test notification.
+- **Ιστορικό (History)** – the last 30 days, and how many doses were given.
+- **Backup** – export all data as text and restore it later.
+- Light and dark mode. Settings from the previous version are carried over on the first start.
 
-## For Developers
+## How it works (for developers)
 
-### Install dependencies
+- Expo SDK 51 + expo-router. Notifications use [Notifee](https://github.com/invertase/notifee) (`@notifee/react-native`).
+  Notifee was archived in April 2026; its maintained fork [`react-native-notify-kit`](https://github.com/marcocrupi/react-native-notify-kit) has the same API but needs the New Architecture. To switch, change the import in `src/notify/driver.ts`.
+- Instead of repeating alarms, the app works out the concrete doses ("runs") for the next 7 days from the routines (`src/engine/runs.ts`), and schedules one exact alarm per dose. Every change goes through `act()` (`src/notify/commands.ts`), which saves the data and then syncs the alarms with the plan (`src/engine/plan.ts`, `src/notify/sync.ts`). The 7 days are topped up every time the app opens or a notification fires.
+- Notification buttons are handled in `src/notify/events.ts`. It is registered in `index.js` so it also runs when Android starts the app in the background.
+- All data is one JSON document in AsyncStorage (`src/store/store.ts`).
+- The engine is plain TypeScript with tests in `__tests__/`.
+
+```
+app/                 screens (expo-router)
+src/engine/          schedule logic, no React
+src/notify/          notifications (Notifee)
+src/store/           saving data
+src/model/           types, default data, migration from v2
+src/ui/              components, theme, sheets
+plugins/             Expo config plugin for the notification icon
+```
+
+### Install
 
 ```bash
 npm install
 ```
 
-This will also apply the `patch-package` patch to expo-notifications automatically via the `postinstall` script.
+### Checks
+
+```bash
+npm test            # engine tests
+npm run typecheck   # TypeScript
+```
 
 ### Run in development
 
@@ -35,10 +58,19 @@ This will also apply the `patch-package` patch to expo-notifications automatical
 npx expo start
 ```
 
-### Build APK (Android)
+The screens also open in a browser (`npm run web`), but notifications only work on a phone.
+
+### Build the APK (Android)
+
+This version removes the old native files, so the `android/` folder must be generated again once:
 
 ```bash
+npx expo prebuild --clean -p android
 cd android && ./gradlew assembleRelease
 ```
 
 Output: `android/app/build/outputs/apk/release/app-release.apk`
+
+If you had changed anything by hand in `android/` (e.g. your own signing key in `android/app/build.gradle`), copy it somewhere first, because `--clean` deletes the folder. An APK signed with a different key can't be installed over the old app without uninstalling it (which also deletes its data).
+
+After installing, open the app once and look at **Ρυθμίσεις → Έλεγχος**. On Samsung / OnePlus / Xiaomi phones, allow the app to run in the background without battery limits.

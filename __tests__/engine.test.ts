@@ -1,0 +1,315 @@
+import {
+  deleteRoutine,
+  markStep,
+  moveRun,
+  prune,
+  saveRoutine,
+  setRunSkipped,
+  shiftDay,
+  snoozeStep,
+  unmarkStep,
+} from '../src/engine/actions';
+import { planNotifications } from '../src/engine/plan';
+import {
+  buildRun,
+  dueSteps,
+  listRuns,
+  nextUpcoming,
+  parseNotifId,
+  runId,
+  runsForDay,
+  stepNotifId,
+} from '../src/engine/runs';
+import { atTime, MINUTE } from '../src/lib/time';
+import { defaultData } from '../src/model/defaults';
+import { migrateV2 } from '../src/model/migrate';
+import { AppData } from '../src/model/types';
+
+const DAY = '2026-10-12';
+const t = (hhmm: string, day = DAY) => atTime(day, hhmm);
+
+/** Fresh default data, created the day before so all of DAY's runs exist. */
+const setup = (): AppData => defaultData(t('08:00', '2026-10-11'));
+
+const EYES_AM = runId('eyes-am-pm', DAY, '09:00');
+
+describe('runs', () => {
+  it('lists every run of the day in time order', () => {
+    const runs = runsForDay(setup(), DAY, t('08:00'));
+    expect(runs.map(r => `${r.time} ${r.routineName}`)).toEqual([
+      '09:00 Μάτια',
+      '09:00 Παυσίπονο',
+      '15:00 Μάτια (μεσημέρι)',
+      '15:00 Παυσίπονο',
+      '21:00 Μάτια',
+      '21:00 Παυσίπονο',
+    ]);
+    expect(runs.every(r => r.status === 'upcoming')).toBe(true);
+  });
+
+  it('waits for the first medicine before timing the next one', () => {
+    const data = setup();
+    let run = buildRun(data, EYES_AM, t('09:05'))!;
+    expect(run.steps[0].status).toBe('due');
+    expect(run.steps[1].status).toBe('waiting');
+    expect(run.steps[1].dueAt).toBe(t('09:20')); // estimate
+
+    // Given 7 minutes late → the next one is due 20′ after that, not at 09:20.
+    markStep(data, EYES_AM, 0, 'given', t('09:07'));
+    run = buildRun(data, EYES_AM, t('09:10'))!;
+    expect(run.steps[0].status).toBe('given');
+    expect(run.steps[1].status).toBe('upcoming');
+    expect(run.steps[1].dueAt).toBe(t('09:27'));
+    expect(run.status).toBe('active');
+
+    run = buildRun(data, EYES_AM, t('09:27'))!;
+    expect(run.steps[1].status).toBe('due');
+
+    markStep(data, EYES_AM, 1, 'given', t('09:29'));
+    run = buildRun(data, EYES_AM, t('09:30'))!;
+    expect(run.status).toBe('done');
+    expect(run.givenCount).toBe(2);
+  });
+
+  it('makes the next medicine due straight away when one is skipped', () => {
+    const data = setup();
+    markStep(data, EYES_AM, 0, 'skipped', t('09:03'));
+    const run = buildRun(data, EYES_AM, t('09:04'))!;
+    expect(run.steps[1].status).toBe('due');
+    expect(run.steps[1].dueAt).toBe(t('09:03'));
+  });
+
+  it('snoozes a single step', () => {
+    const data = setup();
+    snoozeStep(data, EYES_AM, 0, t('09:10'));
+    expect(buildRun(data, EYES_AM, t('09:05'))!.steps[0]).toMatchObject({ status: 'upcoming', snoozed: true });
+    expect(buildRun(data, EYES_AM, t('09:10'))!.steps[0].status).toBe('due');
+  });
+
+  it('marks unanswered doses as missed after the set time', () => {
+    const data = setup();
+    const run = buildRun(data, EYES_AM, t('09:00') + 240 * MINUTE)!;
+    expect(run.steps.map(s => s.status)).toEqual(['missed', 'missed']);
+    expect(run.status).toBe('missed');
+  });
+
+  it('moves one run without touching the others', () => {
+    const data = setup();
+    moveRun(data, EYES_AM, t('10:30'));
+    const runs = runsForDay(data, DAY, t('08:00'));
+    const eyes = runs.find(r => r.id === EYES_AM)!;
+    expect(eyes).toMatchObject({ moved: true, startAt: t('10:30'), plannedAt: t('09:00') });
+    expect(buildRun(data, EYES_AM, t('09:30'))!.steps[0].status).toBe('upcoming');
+    // Same routine the next day is unchanged.
+    const tomorrow = buildRun(data, runId('eyes-am-pm', '2026-10-13', '09:00'), t('08:00'))!;
+    expect(tomorrow.moved).toBe(false);
+    // Runs are sorted by their (new) start time.
+    expect(runs.map(r => r.time)).toEqual(['09:00', '09:00', '15:00', '15:00', '21:00', '21:00']);
+    expect(runs.findIndex(r => r.id === EYES_AM)).toBe(1);
+  });
+
+  it('skips one run', () => {
+    const data = setup();
+    setRunSkipped(data, EYES_AM, true);
+    const run = buildRun(data, EYES_AM, t('09:30'))!;
+    expect(run.status).toBe('skipped');
+    expect(run.steps.every(s => s.status === 'skipped')).toBe(true);
+    setRunSkipped(data, EYES_AM, false);
+    expect(data.runs[EYES_AM]).toBeUndefined();
+  });
+
+  it('shifts every run of the day that has not started', () => {
+    const data = setup();
+    markStep(data, EYES_AM, 0, 'given', t('09:00'));
+    shiftDay(data, DAY, 60, t('09:01'));
+    const runs = runsForDay(data, DAY, t('09:01'));
+    expect(runs.find(r => r.id === EYES_AM)!.moved).toBe(false); // already started
+    expect(runs.filter(r => r.moved).map(r => r.id)).toEqual([
+      runId('painkiller', DAY, '09:00'),
+      runId('eyes-noon', DAY, '15:00'),
+      runId('painkiller', DAY, '15:00'),
+      runId('eyes-am-pm', DAY, '21:00'),
+      runId('painkiller', DAY, '21:00'),
+    ]);
+  });
+
+  it('undo resets the later steps of the chain too', () => {
+    const data = setup();
+    markStep(data, EYES_AM, 0, 'given', t('09:00'));
+    markStep(data, EYES_AM, 1, 'given', t('09:20'));
+    unmarkStep(data, EYES_AM, 0);
+    expect(data.runs[EYES_AM]).toBeUndefined();
+    expect(buildRun(data, EYES_AM, t('09:30'))!.steps.map(s => s.status)).toEqual(['due', 'waiting']);
+  });
+
+  it('does not create runs from before the routine existed', () => {
+    const data = defaultData(t('10:00'));
+    const times = runsForDay(data, DAY, t('10:00')).map(r => r.time);
+    expect(times).toEqual(['15:00', '15:00', '21:00', '21:00']);
+  });
+
+  it('leaves out medicines whose treatment ended', () => {
+    const data = setup();
+    data.meds.find(m => m.id === 'depon')!.endDate = '2026-10-11';
+    const runs = runsForDay(data, DAY, t('08:00'));
+    expect(runs.some(r => r.routineId === 'painkiller')).toBe(false);
+    data.meds.find(m => m.id === 'lacrimmune')!.endDate = '2026-10-11';
+    expect(buildRun(data, EYES_AM, t('08:00'))!.steps.map(s => s.name)).toEqual(['Hylogel']);
+  });
+
+  it('keeps a started run as it was when the routine is edited', () => {
+    const data = setup();
+    markStep(data, EYES_AM, 0, 'given', t('09:00'));
+    const routine = data.routines.find(r => r.id === 'eyes-am-pm')!;
+    saveRoutine(data, { ...routine, steps: [routine.steps[0]] });
+    expect(buildRun(data, EYES_AM, t('09:05'))!.steps).toHaveLength(2);
+    expect(buildRun(data, runId('eyes-am-pm', DAY, '21:00'), t('09:05'))!.steps).toHaveLength(1);
+  });
+
+  it('keeps history of a deleted routine', () => {
+    const data = setup();
+    markStep(data, EYES_AM, 0, 'given', t('09:00'));
+    deleteRoutine(data, 'eyes-am-pm');
+    const ids = listRuns(data, DAY, DAY, t('12:00')).map(r => r.id);
+    expect(ids).toContain(EYES_AM);
+    expect(ids).not.toContain(runId('eyes-am-pm', DAY, '21:00'));
+  });
+
+  it('finds what is due now and what comes next', () => {
+    const data = setup();
+    expect(dueSteps(data, t('09:01')).map(d => d.step.name)).toEqual(['Hylogel', 'Depon']);
+    markStep(data, EYES_AM, 0, 'given', t('09:02'));
+    const next = nextUpcoming(data, t('09:03'))!;
+    expect(next.step.name).toBe('Lacrimmune');
+    expect(next.step.dueAt).toBe(t('09:22'));
+  });
+
+  it('prunes old history', () => {
+    const data = setup();
+    markStep(data, runId('eyes-am-pm', '2026-01-01', '09:00'), 0, 'given', t('09:00', '2026-01-01'));
+    markStep(data, EYES_AM, 0, 'given', t('09:00'));
+    prune(data, t('12:00'));
+    expect(Object.keys(data.runs)).toEqual([EYES_AM]);
+  });
+
+  it('round-trips notification ids', () => {
+    expect(parseNotifId(stepNotifId(EYES_AM, 1))).toEqual({ runId: EYES_AM, index: 1 });
+    expect(parseNotifId('something-else')).toBeNull();
+  });
+});
+
+describe('notification plan', () => {
+  it('schedules every first step ahead and nothing for chain steps yet', () => {
+    const plan = planNotifications(setup(), t('08:00'));
+    const today = plan.alerts.filter(a => a.at < t('23:59'));
+    expect(today.map(a => `${a.step.name}@${new Date(a.at).getHours()}`)).toEqual([
+      'Hylogel@9',
+      'Depon@9',
+      'Hylogel@15',
+      'Depon@15',
+      'Hylogel@21',
+      'Depon@21',
+    ]);
+    expect(plan.due).toEqual([]);
+    // About a week ahead is covered.
+    expect(plan.alerts.length).toBeGreaterThanOrEqual(6 * 7);
+  });
+
+  it('schedules the next medicine and a countdown once the first is given', () => {
+    const data = setup();
+    markStep(data, EYES_AM, 0, 'given', t('09:04'));
+    const plan = planNotifications(data, t('09:05'));
+    const lac = plan.alerts.find(a => a.notifId === stepNotifId(EYES_AM, 1))!;
+    expect(lac.at).toBe(t('09:24'));
+    expect(lac.kind).toBe('due');
+    expect(plan.countdowns.map(c => c.notifId)).toEqual([`${stepNotifId(EYES_AM, 1)}~wait`]);
+  });
+
+  it('repeats an unanswered alert', () => {
+    const data = setup();
+    const plan = planNotifications(data, t('09:25'));
+    const due = plan.due.find(d => d.run.id === EYES_AM)!;
+    expect(due.lastAlertAt).toBe(t('09:20'));
+    const repeat = plan.alerts.find(a => a.notifId === stepNotifId(EYES_AM, 0))!;
+    expect(repeat).toMatchObject({ kind: 'repeat', at: t('09:30') });
+  });
+
+  it('stops repeating when the dose counts as missed', () => {
+    const data = setup();
+    data.settings.missAfterMin = 30;
+    const plan = planNotifications(data, t('09:25'));
+    expect(plan.alerts.find(a => a.notifId === stepNotifId(EYES_AM, 0))).toBeUndefined();
+  });
+
+  it('respects a swipe when sticky is off, until the next repeat', () => {
+    const data = setup();
+    data.settings.sticky = false;
+    data.dismissed[stepNotifId(EYES_AM, 0)] = t('09:22');
+    expect(planNotifications(data, t('09:25')).due.find(d => d.run.id === EYES_AM)!.visible).toBe(false);
+    expect(planNotifications(data, t('09:31')).due.find(d => d.run.id === EYES_AM)!.visible).toBe(true);
+    data.settings.sticky = true;
+    expect(planNotifications(data, t('09:25')).due.find(d => d.run.id === EYES_AM)!.visible).toBe(true);
+  });
+
+  it('plans nothing for a skipped run', () => {
+    const data = setup();
+    setRunSkipped(data, EYES_AM, true);
+    const plan = planNotifications(data, t('08:00'));
+    expect(plan.alerts.some(a => a.run.id === EYES_AM)).toBe(false);
+  });
+});
+
+describe('migration from the old app', () => {
+  const OLD = [
+    {
+      id: 'hylogel',
+      groupTitle: 'Μάτια',
+      name: 'Hylogel',
+      body: 'Σταγόνες Hylogel - 1 σε κάθε μάτι',
+      times: [9, 15, 21],
+      enabled: true,
+      chainAtHours: [9, 21],
+      chain: [{ id: 'lacrimmune', name: 'Lacrimmune', body: 'Αλοιφή Lacrimmune', delayMinutes: 20 }],
+    },
+    { id: 'depon', groupTitle: 'Παυσίπονο', name: 'Depon', body: 'Depon - 1/4', times: [9, 15, 21], enabled: true },
+  ];
+
+  it('splits chains by hour into routines', () => {
+    const data = migrateV2(OLD, t('08:00'));
+    expect(data.meds.map(m => m.name)).toEqual(['Hylogel', 'Lacrimmune', 'Depon']);
+    const summary = data.routines.map(r => ({
+      name: r.name,
+      times: r.times,
+      steps: r.steps.map(s => `${data.meds.find(m => m.id === s.medId)!.name}+${s.waitMin}`),
+    }));
+    expect(summary).toEqual([
+      { name: 'Μάτια', times: ['09:00', '21:00'], steps: ['Hylogel+0', 'Lacrimmune+20'] },
+      { name: 'Μάτια (Hylogel)', times: ['15:00'], steps: ['Hylogel+0'] },
+      { name: 'Παυσίπονο', times: ['09:00', '15:00', '21:00'], steps: ['Depon+0'] },
+    ]);
+  });
+
+  it('follows per-step chain hours of longer chains', () => {
+    const data = migrateV2(
+      [
+        {
+          id: 'a',
+          name: 'A',
+          body: '',
+          times: [8, 20],
+          enabled: true,
+          chainAtHours: [8, 20],
+          chain: [
+            { id: 'b', name: 'B', body: '', delayMinutes: 5, chainAtHours: [8] },
+            { id: 'c', name: 'C', body: '', delayMinutes: 10 },
+          ],
+        },
+      ],
+      0,
+    );
+    expect(data.routines.map(r => [r.times, r.steps.length])).toEqual([
+      [['08:00'], 3],
+      [['20:00'], 2],
+    ]);
+  });
+});
