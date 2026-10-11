@@ -1,7 +1,8 @@
-import { buildRun } from '../engine/runs';
+import { buildRun, dayDone, nextUpcoming } from '../engine/runs';
+import { dateKey } from '../lib/time';
 import { getData, update } from '../store/store';
 import { giveStep, snoozeStepFor } from './commands';
-import { ACTION_GIVE, ACTION_SNOOZE } from './content';
+import { ACTION_GIVE, ACTION_SNOOZE, bravoNotification } from './content';
 import notifee, { Event, EventType } from './driver';
 import { redisplayQuietly, syncNotifications } from './sync';
 
@@ -47,6 +48,15 @@ const stillOpen = async ({ runId, index }: PromptTarget) => {
   return !!step && (step.status === 'due' || step.status === 'upcoming' || step.status === 'missed');
 };
 
+/** After the last dose of the day, a "Μπράβο" with Mario's photo. */
+const celebrateIfDayDone = async (runId: string) => {
+  const now = Date.now();
+  const data = await getData();
+  const run = buildRun(data, runId, now);
+  if (!run || run.date !== dateKey(now) || !dayDone(data, run.date, now)) return;
+  await notifee.displayNotification(bravoNotification(data, nextUpcoming(data, now), now));
+};
+
 export const handleEvent = async (event: Event, foreground: boolean) => {
   const { type, detail } = event;
   const notifId = detail.notification?.id;
@@ -67,6 +77,7 @@ export const handleEvent = async (event: Event, foreground: boolean) => {
       }
       if (detail.pressAction?.id === ACTION_GIVE) {
         await giveStep(target.runId, target.index);
+        await celebrateIfDayDone(target.runId);
       } else if (detail.pressAction?.id === ACTION_SNOOZE) {
         const { settings } = await getData();
         await snoozeStepFor(target.runId, target.index, settings.snoozeMin);
