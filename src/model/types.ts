@@ -40,6 +40,8 @@ export interface Routine {
   enabled: boolean;
   /** Runs planned before this moment are not created (no alerts for the past). */
   createdAt: number;
+  /** "HH:MM" → when that time was added to an existing routine. Same rule, per time. */
+  timeAddedAt?: Record<string, number>;
 }
 
 export interface StepMark {

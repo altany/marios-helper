@@ -335,7 +335,7 @@ export const Sheet = ({
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.sheetWrap}>
         <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.overlay }]} onPress={onClose} />
         <View style={[s.sheet, { backgroundColor: c.card, paddingBottom: insets.bottom + 16 }]}>

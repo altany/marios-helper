@@ -20,7 +20,7 @@ import {
   runsForDay,
   stepNotifId,
 } from '../src/engine/runs';
-import { atTime, MINUTE } from '../src/lib/time';
+import { atTime, everyHours, MINUTE } from '../src/lib/time';
 import { defaultData } from '../src/model/defaults';
 import { migrateV2 } from '../src/model/migrate';
 import { AppData } from '../src/model/types';
@@ -146,6 +146,31 @@ describe('runs', () => {
     const data = defaultData(t('10:00'));
     const times = runsForDay(data, DAY, t('10:00')).map(r => r.time);
     expect(times).toEqual(['15:00', '15:00', '21:00', '21:00']);
+  });
+
+  it('does not ring for a time added today that already passed', () => {
+    const data = setup();
+    const routine = data.routines.find(r => r.id === 'painkiller')!;
+    // At 10:00 the painkiller moves to 07:00 / 15:00 / 23:00.
+    saveRoutine(data, { ...routine, times: everyHours('07:00', 8) }, t('10:00'));
+    const times = runsForDay(data, DAY, t('10:00'))
+      .filter(r => r.routineId === 'painkiller')
+      .map(r => r.time);
+    expect(times).toEqual(['15:00', '23:00']); // no overdue 07:00 today
+    const tomorrow = runsForDay(data, '2026-10-13', t('10:00')).filter(r => r.routineId === 'painkiller');
+    expect(tomorrow.map(r => r.time)).toEqual(['07:00', '15:00', '23:00']);
+    // Saving again later keeps the time it was added.
+    saveRoutine(data, { ...data.routines.find(r => r.id === 'painkiller')!, enabled: true }, t('12:00'));
+    expect(data.routines.find(r => r.id === 'painkiller')!.timeAddedAt).toEqual({
+      '07:00': t('10:00'),
+      '23:00': t('10:00'),
+    });
+  });
+
+  it('spreads doses every N hours', () => {
+    expect(everyHours('07:00', 8)).toEqual(['07:00', '15:00', '23:00']);
+    expect(everyHours('08:00', 12)).toEqual(['08:00', '20:00']);
+    expect(everyHours('07:00', 6)).toEqual(['01:00', '07:00', '13:00', '19:00']);
   });
 
   it('leaves out medicines whose treatment ended', () => {

@@ -50,6 +50,14 @@ export const minutesToHHMM = (min: number): string => {
   return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 };
 
+/** First dose and every `hours` after it, within one day: ("07:00", 8) → 07:00, 15:00, 23:00. */
+export const everyHours = (first: string, hours: number): string[] => {
+  const start = hhmmToMinutes(first);
+  const times: string[] = [];
+  for (let m = start; m < start + 24 * 60; m += hours * 60) times.push(minutesToHHMM(m));
+  return sortTimes(times);
+};
+
 export const isValidHHMM = (s: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 
 export const weekday = (key: string) => parseDateKey(key).getDay();
