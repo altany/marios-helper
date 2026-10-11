@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { Alert, Platform, Share, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, AppState, Platform, Share, Text, View } from 'react-native';
 import { MAX_REPEATS } from '../../src/engine/plan';
 import { formatMinutes } from '../../src/lib/time';
 import { defaultData } from '../../src/model/defaults';
@@ -44,6 +44,11 @@ export default function SettingsScreen() {
       .catch(() => setChecks([]));
   }, []);
   useFocusEffect(refreshChecks);
+  // Coming back from the phone's settings: show the new state.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => state === 'active' && refreshChecks());
+    return () => sub.remove();
+  }, [refreshChecks]);
 
   if (!data) return <Loading />;
   const set = (patch: Partial<Settings>) =>
@@ -84,7 +89,7 @@ export default function SettingsScreen() {
       },
     ]);
 
-  const problems = checks?.filter(ch => !ch.ok).length ?? 0;
+  const problems = checks?.filter(ch => ch.ok === false).length ?? 0;
 
   return (
     <Screen title="Ρυθμίσεις">
@@ -170,14 +175,18 @@ export default function SettingsScreen() {
             </Text>
             {checks?.map(ch => (
               <View key={ch.key} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-                <Ionicons name={ch.ok ? 'checkmark-circle' : 'warning'} size={22} color={ch.ok ? c.success : c.warn} />
+                <Ionicons
+                  name={ch.ok === null ? 'information-circle' : ch.ok ? 'checkmark-circle' : 'warning'}
+                  size={22}
+                  color={ch.ok === null ? c.textSoft : ch.ok ? c.success : c.warn}
+                />
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={[s.rowLabel, { color: c.text, fontSize: 15 }]}>{ch.label}</Text>
                   <Text style={[s.hint, { color: c.textMuted }]}>{ch.help}</Text>
                   {ch.fix && (
                     <Button
                       small
-                      kind={ch.ok ? 'ghost' : 'primary'}
+                      kind={ch.ok === false ? 'primary' : 'ghost'}
                       label={ch.fixLabel ?? 'Άνοιγμα'}
                       style={{ alignSelf: 'flex-start' }}
                       onPress={async () => {
