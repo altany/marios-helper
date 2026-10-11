@@ -21,7 +21,7 @@ const loadFromDisk = async (): Promise<AppData> => {
 
   // First start of this version: bring over the settings of the old app if any.
   const now = Date.now();
-  let data = defaultData(now);
+  let data = defaultData();
   try {
     const old = await AsyncStorage.getItem(V2_SETTINGS_KEY);
     if (old) data = migrateV2(JSON.parse(old), now);

@@ -23,14 +23,6 @@ interface V2Schedule {
 
 export const V2_SETTINGS_KEY = 'medication_settings_v2';
 
-/** The doctor's instructions that were written into the old "Οδηγίες" screen. */
-export const V2_INSTRUCTIONS = [
-  'Από την παλιά εφαρμογή (ως τέλος Αυγούστου):',
-  '• Exocin κολλύριο: 1 σταγόνα × 4 φορές την ημέρα, στο αριστερό μάτι.',
-  '• Hylogel κολλύριο: 1 σταγόνα × 4 φορές την ημέρα, και στα δύο μάτια.',
-  '• Lacrimmune αλοιφή: όσο ένας κόκκος ρυζιού, ανά 12ωρο (πρωί + βράδυ), μέσα στο αριστερό μάτι + μασάζ με το βλέφαρο.',
-].join('\n');
-
 /** How many chain steps run after the first medicine at this hour (old "chainAtHours" rules). */
 const chainDepthAt = (s: V2Schedule, hour: number): number => {
   const chain = s.chain ?? [];
@@ -111,7 +103,7 @@ export const migrateV2 = (old: V2Schedule[], now: number): AppData => {
     routines,
     runs: {},
     settings: { ...DEFAULT_SETTINGS },
-    prescription: { vetName: '', vetPhone: '', notes: V2_INSTRUCTIONS },
+    prescription: { vetName: '', vetPhone: '', notes: '' },
     dismissed: {},
   };
 };
