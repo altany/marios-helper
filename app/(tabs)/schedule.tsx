@@ -84,14 +84,18 @@ export default function ScheduleScreen() {
               <Text style={[st.slotTime, { color: c.text }]}>{t}</Text>
               <View style={{ flex: 1, gap: 10 }}>
                 {slots.get(t)!.map(r => (
-                  <View key={r.id} style={{ gap: 2 }}>
+                  <Pressable
+                    key={r.id}
+                    onPress={() => router.push(`/routine/${r.id}`)}
+                    style={({ pressed }) => [{ gap: 2 }, pressed && { opacity: 0.6 }]}
+                  >
                     <Chain data={data} routine={r} c={c} />
                     <Text style={[s.hint, { color: c.textMuted }]}>
                       {[r.name, r.days.length > 0 && r.days.length < 7 ? daysLabel(r.days) : '']
                         .filter(Boolean)
                         .join(' · ')}
                     </Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             </View>

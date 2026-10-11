@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -55,16 +56,36 @@ export default function MedEditor() {
   const usedIn = data.routines.filter(r => r.steps.some(st => st.medId === draft.id));
   const today = dateKey(Date.now());
 
-  const save = async () => {
-    if (!draft.name.trim()) return Alert.alert('Λείπει όνομα', 'Γράψε το όνομα του φαρμάκου.');
+  /** Saves the medicine; false if something is missing. */
+  const persist = async () => {
+    if (!draft.name.trim()) {
+      Alert.alert('Λείπει όνομα', 'Γράψε το όνομα του φαρμάκου.');
+      return false;
+    }
     if (draft.startDate && draft.endDate && draft.endDate < draft.startDate) {
-      return Alert.alert('Ημερομηνίες', 'Η λήξη είναι πριν από την έναρξη.');
+      Alert.alert('Ημερομηνίες', 'Η λήξη είναι πριν από την έναρξη.');
+      return false;
     }
     await act(d =>
       saveMed(d, { ...draft, name: draft.name.trim(), dose: draft.dose.trim(), notes: draft.notes.trim() }),
     );
+    return true;
+  };
+
+  const save = async () => {
+    if (!(await persist())) return;
     toast('Αποθηκεύτηκε');
     router.back();
+  };
+
+  /** Opens a new routine with this medicine, to choose its times. */
+  const addToSchedule = async () => {
+    if (isNew) {
+      if (!(await persist())) return;
+      router.replace(`/routine/new?med=${draft.id}`);
+    } else {
+      router.push(`/routine/new?med=${draft.id}`);
+    }
   };
 
   const remove = () =>
@@ -127,6 +148,39 @@ export default function MedEditor() {
         />
       </Card>
 
+      <SectionTitle>Πότε δίνεται</SectionTitle>
+      {usedIn.map(r => (
+        <Card
+          key={r.id}
+          onPress={() => router.push(`/routine/${r.id}`)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+        >
+          <View style={{ flex: 1, gap: 8 }}>
+            <Text style={[st.routineName, { color: c.text }]}>
+              {r.name || 'Ρουτίνα'}
+              {r.enabled ? '' : ' (ανενεργή)'}
+            </Text>
+            <View style={s.wrap}>
+              {r.times.map(t => (
+                <View key={t} style={[st.time, { backgroundColor: c.accentSoft }]}>
+                  <Text style={[st.timeText, { color: c.accentText }]}>{t}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <Text style={{ color: c.accentText, fontWeight: '700' }}>Αλλαγή ωρών</Text>
+          <Ionicons name="chevron-forward" size={18} color={c.accentText} />
+        </Card>
+      ))}
+      {usedIn.length === 0 && (
+        <Card>
+          <Text style={[s.hint, { color: c.textSoft }]}>
+            Δεν είναι ακόμα στο πρόγραμμα, οπότε δεν έρχονται ειδοποιήσεις για αυτό.
+          </Text>
+          <Button label="Βάλ' το στο πρόγραμμα" kind="primary" icon="time-outline" onPress={addToSchedule} />
+        </Card>
+      )}
+
       <SectionTitle>Είδος</SectionTitle>
       <Card>
         <View style={s.wrap}>
@@ -177,12 +231,6 @@ export default function MedEditor() {
         </Text>
       </Card>
 
-      {usedIn.length > 0 && (
-        <Text style={[s.hint, { color: c.textSoft, paddingHorizontal: 4 }]}>
-          Χρησιμοποιείται σε: {usedIn.map(r => `${r.name || 'Ρουτίνα'} (${r.times.join(', ')})`).join(' · ')}
-        </Text>
-      )}
-
       <Button label="Αποθήκευση" kind="primary" icon="checkmark" onPress={save} />
       {!isNew && <Button label="Διαγραφή φαρμάκου" kind="danger" icon="trash-outline" onPress={remove} />}
 
@@ -217,4 +265,7 @@ export default function MedEditor() {
 
 const st = StyleSheet.create({
   swatch: { width: 34, height: 34, borderRadius: 17, borderWidth: 0 },
+  routineName: { fontSize: 17, fontWeight: '800' },
+  time: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  timeText: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
 });

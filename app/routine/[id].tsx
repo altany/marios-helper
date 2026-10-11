@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { deleteRoutine, saveMed, saveRoutine } from '../../src/engine/actions';
 import { newId } from '../../src/lib/id';
-import { DAY_SHORT, formatMinutes, sortTimes } from '../../src/lib/time';
+import { DAY_SHORT, everyHours, formatMinutes, sortTimes } from '../../src/lib/time';
 import { MED_COLORS } from '../../src/model/defaults';
 import { Medication, Routine } from '../../src/model/types';
 import { act } from '../../src/notify/commands';
@@ -28,27 +28,39 @@ import { useColors } from '../../src/ui/theme';
 import { toast } from '../../src/ui/toast';
 
 const WAITS = [0, 5, 10, 15, 20, 30, 45, 60];
+const EVERY = [4, 6, 8, 12];
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 export default function RoutineEditor() {
   const c = useColors();
   const data = useData();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `med`: start a new routine with this medicine (from the medicine screen).
+  const { id, med: startMed } = useLocalSearchParams<{ id: string; med?: string }>();
   const isNew = id === 'new';
   const [draft, setDraft] = useState<Routine | null>(null);
   const [timeSheet, setTimeSheet] = useState<{ index: number | null; value: string } | null>(null);
+  const [everySheet, setEverySheet] = useState<{ first: string; hours: number } | null>(null);
   const [medSheet, setMedSheet] = useState<{ index: number | null } | null>(null);
   const [newMed, setNewMed] = useState({ name: '', dose: '' });
 
   useEffect(() => {
     if (!data || draft) return;
     const existing = data.routines.find(r => r.id === id);
+    const med = data.meds.find(m => m.id === startMed);
     setDraft(
       existing
         ? JSON.parse(JSON.stringify(existing))
-        : { id: newId(), name: '', times: [], days: [], steps: [], enabled: true, createdAt: Date.now() },
+        : {
+            id: newId(),
+            name: med?.name ?? '',
+            times: [],
+            days: [],
+            steps: med ? [{ id: newId(), medId: med.id, waitMin: 0 }] : [],
+            enabled: true,
+            createdAt: Date.now(),
+          },
     );
-  }, [data, id, draft]);
+  }, [data, id, draft, startMed]);
 
   if (!data || !draft) return <Loading />;
   const patch = (p: Partial<Routine>) => setDraft({ ...draft, ...p });
@@ -148,6 +160,10 @@ export default function RoutineEditor() {
             />
           ))}
           <Chip label="+ Ώρα" onPress={() => setTimeSheet({ index: null, value: '09:00' })} />
+          <Chip
+            label="Κάθε … ώρες"
+            onPress={() => setEverySheet({ first: sortTimes(draft.times)[0] ?? '08:00', hours: 8 })}
+          />
         </View>
         <Text style={[s.label, { color: c.textSoft, marginTop: 6 }]}>Μέρες</Text>
         <View style={s.wrap}>
@@ -257,6 +273,40 @@ export default function RoutineEditor() {
                 setTimeSheet(null);
               }}
             />
+          </>
+        )}
+      </Sheet>
+
+      <Sheet visible={!!everySheet} onClose={() => setEverySheet(null)} title="Κάθε Χ ώρες">
+        {everySheet && (
+          <>
+            <View style={s.wrap}>
+              {EVERY.map(h => (
+                <Chip
+                  key={h}
+                  label={`Κάθε ${h} ώρες`}
+                  selected={everySheet.hours === h}
+                  onPress={() => setEverySheet({ ...everySheet, hours: h })}
+                />
+              ))}
+            </View>
+            <Text style={[s.label, { color: c.textSoft }]}>Πρώτη δόση της μέρας</Text>
+            <TimePicker value={everySheet.first} onChange={first => setEverySheet({ ...everySheet, first })} />
+            <Card style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
+              <Text style={{ color: c.accentText, fontSize: 16, fontWeight: '700' }}>
+                {everyHours(everySheet.first, everySheet.hours).join(' · ')}
+              </Text>
+            </Card>
+            <Button
+              label="Εντάξει"
+              kind="primary"
+              icon="checkmark"
+              onPress={() => {
+                patch({ times: everyHours(everySheet.first, everySheet.hours) });
+                setEverySheet(null);
+              }}
+            />
+            <Text style={[s.hint, { color: c.textMuted }]}>Αντικαθιστά τις ώρες που υπάρχουν ήδη στη ρουτίνα.</Text>
           </>
         )}
       </Sheet>

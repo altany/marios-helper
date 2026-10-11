@@ -180,8 +180,8 @@ export const listRuns = (data: AppData, from: string, to: string, now: number): 
       if (!routineRunsOn(r, d)) continue;
       for (const t of r.times) {
         const id = runId(r.id, d, t);
-        // A routine doesn't create runs before it existed (no alerts for the past).
-        if (!data.runs[id] && atTime(d, t) < r.createdAt) continue;
+        // No runs from before the routine (or this time of it) existed: no alerts for the past.
+        if (!data.runs[id] && atTime(d, t) < Math.max(r.createdAt, r.timeAddedAt?.[t] ?? 0)) continue;
         ids.add(id);
       }
     }

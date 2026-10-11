@@ -88,10 +88,19 @@ export const shiftDay = (data: AppData, date: string, minutes: number, now: numb
   }
 };
 
-export const saveRoutine = (data: AppData, routine: Routine) => {
+/** Adds or replaces a routine. Times added now don't create runs for earlier today. */
+export const saveRoutine = (data: AppData, routine: Routine, now = Date.now()) => {
   const i = data.routines.findIndex(r => r.id === routine.id);
-  if (i >= 0) data.routines[i] = routine;
-  else data.routines.push(routine);
+  const old = data.routines[i];
+  const timeAddedAt: Record<string, number> = {};
+  for (const t of routine.times) {
+    const before = old?.timeAddedAt?.[t];
+    if (before != null) timeAddedAt[t] = before;
+    else if (old && !old.times.includes(t)) timeAddedAt[t] = now;
+  }
+  const next = { ...routine, timeAddedAt };
+  if (i >= 0) data.routines[i] = next;
+  else data.routines.push(next);
 };
 
 export const deleteRoutine = (data: AppData, id: string) => {
