@@ -1,0 +1,126 @@
+import { Platform } from 'react-native';
+import { planNotifications } from '../engine/plan';
+import { parseNotifId } from '../engine/runs';
+import { MINUTE } from '../lib/time';
+import { getData } from '../store/store';
+import { countdownNotification, doseNotification, signature } from './content';
+import notifee, { AlarmType, AndroidNotificationSetting, TriggerType } from './driver';
+
+// Makes Android's scheduled and shown notifications match the plan:
+//  - one alarm per medicine that is coming up (or the next repeat of one that is due),
+//  - due medicines stay visible until answered,
+//  - everything else of ours is removed.
+// It is safe to call any time; it only changes what differs.
+
+const isOurs = (id: string | undefined): id is string => !!id && parseNotifId(id.replace(/~wait$/, '')) != null;
+
+let running: Promise<void> | null = null;
+let again = false;
+
+export const syncNotifications = (): Promise<void> => {
+  if (running) {
+    again = true;
+    return running;
+  }
+  running = (async () => {
+    do {
+      again = false;
+      try {
+        await syncOnce();
+      } catch (e) {
+        console.warn('Notification sync failed', e);
+      }
+    } while (again);
+  })().finally(() => {
+    running = null;
+  });
+  return running;
+};
+
+/**
+ * Exact alarms if allowed. Without the "exact alarms" permission the library would
+ * drop exact alarms, so fall back to inexact ones (may be a few minutes late).
+ */
+export const alarmType = async () => {
+  if (Platform.OS !== 'android') return AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE;
+  const settings = await notifee.getNotificationSettings();
+  return settings.android?.alarm === AndroidNotificationSetting.DISABLED
+    ? AlarmType.SET_AND_ALLOW_WHILE_IDLE
+    : AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE;
+};
+
+const syncOnce = async () => {
+  const data = await getData();
+  const now = Date.now();
+  const plan = planNotifications(data, now);
+  const type = await alarmType();
+
+  // 1. Scheduled alarms
+  const wanted = new Map<string, { notification: ReturnType<typeof doseNotification>; at: number }>();
+  for (const alert of plan.alerts) {
+    if (wanted.has(alert.notifId)) continue;
+    const notification = doseNotification(data, alert.run, alert.step, { postAt: alert.at });
+    notification.data.sig = signature(notification, alert.at);
+    wanted.set(alert.notifId, { notification, at: alert.at });
+  }
+
+  for (const existing of await notifee.getTriggerNotifications()) {
+    const id = existing.notification.id;
+    if (!isOurs(id)) continue;
+    const want = wanted.get(id);
+    if (want && existing.notification.data?.sig === want.notification.data.sig) {
+      wanted.delete(id); // already scheduled as it should be
+    } else {
+      await notifee.cancelTriggerNotification(id);
+    }
+  }
+
+  for (const { notification, at } of wanted.values()) {
+    if (at <= Date.now() + 2000) continue; // too late to schedule; shown below as due
+    await notifee.createTriggerNotification(notification, {
+      type: TriggerType.TIMESTAMP,
+      timestamp: at,
+      alarmManager: { type },
+    });
+  }
+
+  // 2. Notifications in the notification drawer
+  const displayed = await notifee.getDisplayedNotifications();
+  const shown = new Map<string, Record<string, unknown> | undefined>();
+  for (const d of displayed) {
+    const id = d.notification?.id ?? d.id;
+    if (isOurs(id)) shown.set(id, d.notification?.data);
+  }
+
+  const dueIds = new Set(plan.due.filter(d => d.visible).map(d => d.step.notifId));
+  const waitIds = new Set(plan.countdowns.map(c => c.notifId));
+  for (const id of shown.keys()) {
+    if (!dueIds.has(id) && !waitIds.has(id)) await notifee.cancelDisplayedNotification(id);
+  }
+
+  for (const d of plan.due) {
+    if (!d.visible || shown.has(d.step.notifId)) continue;
+    // Missing although due: its alarm was missed, or it was just swiped away.
+    // Only make noise if it became due a moment ago.
+    const fresh = now - d.lastAlertAt < 2 * MINUTE;
+    await notifee.displayNotification(doseNotification(data, d.run, d.step, { quiet: !fresh }));
+  }
+
+  for (const c of plan.countdowns) {
+    if (c.step.dueAt - now < MINUTE) continue;
+    const notification = countdownNotification(data, c.run, c.step, c.after, now);
+    if (shown.get(c.notifId)?.sig === notification.data.sig) continue;
+    await notifee.displayNotification(notification);
+  }
+};
+
+/** Shows a due medicine again without sound (after it was swiped away). */
+export const redisplayQuietly = async (notifId: string) => {
+  const data = await getData();
+  const plan = planNotifications(data, Date.now());
+  const due = plan.due.find(d => d.step.notifId === notifId);
+  if (due?.visible) await notifee.displayNotification(doseNotification(data, due.run, due.step, { quiet: true }));
+};
+
+/** Number of our alarms currently scheduled with Android. */
+export const scheduledCount = async () => (await notifee.getTriggerNotificationIds()).filter(id => isOurs(id)).length;

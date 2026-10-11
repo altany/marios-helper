@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mario",
     "slug": "marios-helper",
-    "version": "3.0.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -21,27 +21,26 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.altany.marioshelper"
+      "package": "com.altany.marioshelper",
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "USE_EXACT_ALARM",
+        "SCHEDULE_EXACT_ALARM",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+      ]
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#317181",
-          "sounds": []
-        }
-      ]
+      "./plugins/withNotificationIcon"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
       "router": {
         "origin": false
@@ -49,6 +48,12 @@
       "eas": {
         "projectId": "96e3863b-2a0e-4ff1-9abc-83cb166fb511"
       }
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/96e3863b-2a0e-4ff1-9abc-83cb166fb511"
     }
   }
 }
