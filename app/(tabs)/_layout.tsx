@@ -22,11 +22,11 @@ export default function TabLayout() {
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Σήμερα', tabBarIcon: icon('today', 'today-outline') }} />
+      <Tabs.Screen name="index" options={{ title: 'Σήμερα', tabBarIcon: icon('paw', 'paw-outline') }} />
       <Tabs.Screen name="schedule" options={{ title: 'Πρόγραμμα', tabBarIcon: icon('calendar', 'calendar-outline') }} />
       <Tabs.Screen
         name="prescription"
-        options={{ title: 'Συνταγή', tabBarIcon: icon('document-text', 'document-text-outline') }}
+        options={{ title: 'Συνταγή', tabBarIcon: icon('medkit', 'medkit-outline') }}
       />
       <Tabs.Screen name="settings" options={{ title: 'Ρυθμίσεις', tabBarIcon: icon('settings', 'settings-outline') }} />
     </Tabs>

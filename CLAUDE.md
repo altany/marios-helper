@@ -26,3 +26,4 @@ Things that change the native fingerprint and so force a new install: `app.json`
 
 - Notifications use Notifee (`src/notify/driver.ts`). Notification texts use plain words (no ✓ or ′) so they show on the owner's Garmin watch.
 - All schedule logic is pure TypeScript in `src/engine/` with tests in `__tests__/`; every data change goes through `act()` in `src/notify/commands.ts`, which also re-syncs the alarms.
+- The look is dog themed: Mario's colours in `src/ui/theme.ts` (cream, caramel, red bandana) and paw prints. Titles and medicine names use the rounded font via the `rounded` style; it is a Latin + Greek subset of M PLUS Rounded 1c ExtraBold in `assets/fonts/` (OFL), so keep `fontWeight` normal with it.

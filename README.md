@@ -52,6 +52,7 @@ src/notify/          notifications (Notifee)
 src/store/           saving data
 src/model/           types, default data, migration from v2
 src/ui/              components, theme, sheets
+assets/fonts/        rounded title font (Latin + Greek subset, OFL)
 plugins/             Expo config plugin for the notification icon
 ```
 

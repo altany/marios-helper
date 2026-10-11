@@ -22,7 +22,7 @@ import {
   useNow,
 } from '../../src/ui/components';
 import { DatePicker } from '../../src/ui/pickers';
-import { useColors } from '../../src/ui/theme';
+import { rounded, useColors } from '../../src/ui/theme';
 import { toast } from '../../src/ui/toast';
 
 const shortDate = (key: string) => {
@@ -260,7 +260,7 @@ export default function PrescriptionScreen() {
 
 const st = StyleSheet.create({
   medHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  medName: { fontSize: 19, fontWeight: '800' },
+  medName: { ...rounded, fontSize: 19, lineHeight: 25 },
   dose: { fontSize: 16, lineHeight: 22, fontWeight: '600' },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },

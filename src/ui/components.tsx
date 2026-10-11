@@ -18,9 +18,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { caps } from '../lib/text';
 import { kindInfo } from '../model/defaults';
 import { MedKind } from '../model/types';
-import { radius, useColors } from './theme';
+import { radius, rounded, useColors } from './theme';
 
 export type IconName = keyof typeof Ionicons.glyphMap;
+export type MciName = keyof typeof MaterialCommunityIcons.glyphMap;
 
 /** Re-renders every `ms` so "σε 5′" texts stay current. */
 export const useNow = (ms = 30_000) => {
@@ -47,6 +48,12 @@ export const Screen = ({
 }) => {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  // A big faint paw print behind the title.
+  const paw = title ? (
+    <View pointerEvents="none" style={[s.watermark, { top: insets.top - 34 }]}>
+      <Ionicons name="paw" size={150} color={c.accent} />
+    </View>
+  ) : null;
   const header = title ? (
     <View style={s.header}>
       <View style={{ flex: 1 }}>
@@ -59,6 +66,7 @@ export const Screen = ({
   if (!scroll) {
     return (
       <View style={[s.fill, { backgroundColor: c.bg, paddingTop: insets.top }]}>
+        {paw}
         {header}
         {children}
       </View>
@@ -70,6 +78,7 @@ export const Screen = ({
       contentContainerStyle={[s.content, { paddingTop: insets.top + 8 }]}
       keyboardShouldPersistTaps="handled"
     >
+      {paw}
       {header}
       {children}
     </ScrollView>
@@ -110,7 +119,10 @@ export const SectionTitle = ({ children, right }: { children: ReactNode; right?:
   const text = parts.every(p => typeof p === 'string' || typeof p === 'number') ? caps(parts.join('')) : children;
   return (
     <View style={s.sectionRow}>
-      <Text style={[s.section, { color: c.textSoft }]}>{text}</Text>
+      <View style={s.sectionLeft}>
+        <Ionicons name="paw" size={12} color={c.accentText} style={{ opacity: 0.6 }} />
+        <Text style={[s.section, { color: c.textSoft }]}>{text}</Text>
+      </View>
       {right}
     </View>
   );
@@ -355,11 +367,17 @@ export const Sheet = ({
   );
 };
 
-export const EmptyState = ({ icon, text }: { icon: IconName; text: string }) => {
+export const EmptyState = ({ icon, dog, text }: { icon?: IconName; dog?: MciName; text: string }) => {
   const c = useColors();
   return (
     <View style={s.empty}>
-      <Ionicons name={icon} size={30} color={c.textMuted} />
+      {dog ? (
+        <View style={[s.emptyDog, { backgroundColor: c.accentSoft }]}>
+          <MaterialCommunityIcons name={dog} size={34} color={c.accentText} />
+        </View>
+      ) : (
+        <Ionicons name={icon ?? 'paw-outline'} size={30} color={c.textMuted} />
+      )}
       <Text style={[s.emptyText, { color: c.textSoft }]}>{text}</Text>
     </View>
   );
@@ -369,8 +387,9 @@ export const s = StyleSheet.create({
   fill: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, paddingBottom: 48, gap: 12 },
+  watermark: { position: 'absolute', right: -30, opacity: 0.07, transform: [{ rotate: '-20deg' }] },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4, paddingHorizontal: 2 },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  title: { ...rounded, fontSize: 29, lineHeight: 36 },
   subtitle: { fontSize: 15, marginTop: 2 },
   card: { borderRadius: radius.lg, borderWidth: 1, padding: 16, gap: 10 },
   sectionRow: {
@@ -380,6 +399,7 @@ export const s = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 4,
   },
+  sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   section: { fontSize: 13, fontWeight: '700', letterSpacing: 0.6 },
   btn: {
     flexDirection: 'row',
@@ -421,7 +441,8 @@ export const s = StyleSheet.create({
   },
   grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, marginBottom: 8 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sheetTitle: { fontSize: 20, fontWeight: '800', flex: 1 },
-  empty: { alignItems: 'center', gap: 8, paddingVertical: 24 },
+  sheetTitle: { ...rounded, fontSize: 20, lineHeight: 26, flex: 1 },
+  empty: { alignItems: 'center', gap: 10, paddingVertical: 20 },
+  emptyDog: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 15, textAlign: 'center' },
 });

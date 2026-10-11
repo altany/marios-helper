@@ -9,7 +9,7 @@ import { onPrompt } from '../notify/events';
 import { getData, useData } from '../store/store';
 import { Button, Chip, MedIcon, s, useNow } from './components';
 import { SNOOZE_OPTIONS } from './dose';
-import { radius, useColors } from './theme';
+import { radius, rounded, useColors } from './theme';
 import { toast } from './toast';
 
 type Target = { runId: string; index: number };
@@ -58,7 +58,10 @@ export const DosePrompt = () => {
       <View style={[st.overlay, { backgroundColor: c.overlay }]}>
         <View style={[st.box, { backgroundColor: c.card }]}>
           <View style={st.top}>
-            <Image source={require('../../assets/images/mario-avatar.png')} style={st.avatar} />
+            <Image
+              source={require('../../assets/images/mario-avatar.png')}
+              style={[st.avatar, { borderColor: c.bandana }]}
+            />
             <View style={{ flex: 1 }}>
               <Text style={[st.kicker, { color: c.accentText }]}>
                 {caps(`${data!.settings.petName} · ${run.routineName || 'Φάρμακο'}`)}
@@ -90,10 +93,10 @@ export const DosePrompt = () => {
           <Button
             label="Το έδωσα"
             kind="success"
-            icon="checkmark-circle"
+            icon="paw"
             onPress={async () => {
               await giveStep(run.id, step.index);
-              await done(`${step.name} ✓`);
+              await done(`${step.name}: δόθηκε`);
             }}
           />
 
@@ -134,10 +137,10 @@ const st = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'center', padding: 20 },
   box: { borderRadius: 24, padding: 20, gap: 14 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
+  avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2.5 },
   kicker: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
   med: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  name: { fontSize: 26, fontWeight: '800' },
+  name: { ...rounded, fontSize: 26, lineHeight: 32 },
   dose: { fontSize: 17, lineHeight: 23, marginTop: 2 },
   notes: { fontSize: 15, lineHeight: 21 },
   next: { borderRadius: radius.md, padding: 12 },

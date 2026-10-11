@@ -19,7 +19,7 @@ export const statusInfo = (
   const prev = run.steps[step.index - 1];
   switch (step.status) {
     case 'given':
-      return { icon: 'checkmark-circle', color: c.success, text: `Δόθηκε ${toHHMM(step.markedAt!)}` };
+      return { icon: 'paw', color: c.success, text: `Δόθηκε ${toHHMM(step.markedAt!)}` };
     case 'skipped':
       return {
         icon: 'remove-circle-outline',
