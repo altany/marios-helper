@@ -77,10 +77,12 @@ export interface RunRecord {
 }
 
 export interface Settings {
+  /** All reminders on hold (e.g. Mario is staying at the vet). */
+  paused: boolean;
   petName: string;
   /** Minutes for the "Αργότερα" button on the notification. */
   snoozeMin: number;
-  /** Alert again every N minutes until answered. 0 = off. */
+  /** Alert again every N minutes until answered (at most MAX_REPEATS times). 0 = off. */
   repeatMin: number;
   /** A dose with no answer after this many minutes counts as missed. */
   missAfterMin: number;

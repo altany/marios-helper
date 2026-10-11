@@ -1,5 +1,5 @@
 import { RunView, StepView } from '../engine/runs';
-import { formatMinutes, MINUTE, toHHMM } from '../lib/time';
+import { formatMinutes, formatMinutesWords, MINUTE, toHHMM } from '../lib/time';
 import { AppData } from '../model/types';
 import { ACCENT } from '../ui/theme';
 import { CH_DOSE, CH_DOSE_QUIET, CH_WAIT } from './channels';
@@ -12,11 +12,13 @@ const SMALL_ICON = 'ic_stat_paw';
 const LARGE_ICON = require('../../assets/images/mario-avatar.png');
 
 /** Text describing the medicine that follows in the chain, if any. */
-export const nextLine = (run: RunView, step: StepView) => {
+export const nextLine = (run: RunView, step: StepView, format = formatMinutes) => {
   const next = run.steps[step.index + 1];
   if (!next) return '';
-  return next.waitMin > 0 ? `Μετά: ${next.name} σε ${formatMinutes(next.waitMin)}` : `Μετά: ${next.name} αμέσως`;
+  return next.waitMin > 0 ? `Μετά: ${next.name} σε ${format(next.waitMin)}` : `Μετά: ${next.name} αμέσως`;
 };
+
+// Notification texts avoid symbols like ✓ or ′: some smartwatches can't show them.
 
 /**
  * The notification for one medicine.
@@ -32,7 +34,7 @@ export const doseNotification = (
   // Android removes it by itself once the dose counts as missed.
   const timeoutAfter = Math.max(MINUTE, step.dueAt + settings.missAfterMin * MINUTE - (opts.postAt ?? Date.now()));
   const med = step.med;
-  const after = nextLine(run, step);
+  const after = nextLine(run, step, formatMinutesWords);
   const lines = [med?.dose, med?.notes, after].filter(Boolean) as string[];
   const subtitle = [run.routineName, toHHMM(step.dueAt)].filter(Boolean).join(' · ');
   const quiet = !!opts.quiet;
@@ -40,7 +42,7 @@ export const doseNotification = (
   return {
     id: step.notifId,
     title: `${settings.petName} · ${step.name}`,
-    body: lines.join(' — ') || 'Ώρα για το φάρμακο',
+    body: lines.join('\n') || 'Ώρα για το φάρμακο',
     subtitle,
     data: { runId: run.id, index: String(step.index), kind: 'dose' },
     android: {
@@ -62,8 +64,8 @@ export const doseNotification = (
       style: { type: AndroidStyle.BIGTEXT, text: lines.join('\n') || 'Ώρα για το φάρμακο' },
       pressAction: { id: 'default', launchActivity: 'default' },
       actions: [
-        { title: '✓ Το έδωσα', pressAction: { id: ACTION_GIVE } },
-        { title: `Αργότερα (${formatMinutes(settings.snoozeMin)})`, pressAction: { id: ACTION_SNOOZE } },
+        { title: 'Το έδωσα', pressAction: { id: ACTION_GIVE } },
+        { title: `Αργότερα ${formatMinutesWords(settings.snoozeMin)}`, pressAction: { id: ACTION_SNOOZE } },
       ],
     },
     ios: {
@@ -99,7 +101,7 @@ export const countdownNotification = (
     timestamp: step.dueAt,
     timeoutAfter: Math.max(1000, step.dueAt - now),
     pressAction: { id: 'default', launchActivity: 'default' },
-    actions: [{ title: '✓ Το έδωσα ήδη', pressAction: { id: ACTION_GIVE } }],
+    actions: [{ title: 'Το έδωσα ήδη', pressAction: { id: ACTION_GIVE } }],
   },
 });
 

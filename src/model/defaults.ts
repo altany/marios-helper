@@ -15,10 +15,11 @@ export const MED_KINDS = [
 export const kindInfo = (kind: MedKind) => MED_KINDS.find(k => k.kind === kind) ?? MED_KINDS[5];
 
 export const DEFAULT_SETTINGS: Settings = {
+  paused: false,
   petName: 'Μάριο',
   snoozeMin: 10,
   repeatMin: 10,
-  missAfterMin: 240,
+  missAfterMin: 720,
   sticky: true,
   countdown: true,
   insistent: false,

@@ -7,6 +7,9 @@ import { formatFromNow, formatMinutes, MINUTE, toHHMM } from '../lib/time';
 import { IconName, MedIcon } from './components';
 import { Colors, radius, useColors } from './theme';
 
+/** Choices for "Αργότερα" (5 minutes to 2 hours). */
+export const SNOOZE_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+
 export const statusInfo = (
   run: RunView,
   step: StepView,

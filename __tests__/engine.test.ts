@@ -88,7 +88,7 @@ describe('runs', () => {
 
   it('marks unanswered doses as missed after the set time', () => {
     const data = setup();
-    const run = buildRun(data, EYES_AM, t('09:00') + 240 * MINUTE)!;
+    const run = buildRun(data, EYES_AM, t('09:00') + data.settings.missAfterMin * MINUTE)!;
     expect(run.steps.map(s => s.status)).toEqual(['missed', 'missed']);
     expect(run.status).toBe('missed');
   });
@@ -200,7 +200,9 @@ describe('runs', () => {
 
 describe('notification plan', () => {
   it('schedules every first step ahead and nothing for chain steps yet', () => {
-    const plan = planNotifications(setup(), t('08:00'));
+    const data = setup();
+    data.settings.missAfterMin = 240; // so last night's doses are no longer due
+    const plan = planNotifications(data, t('08:00'));
     const today = plan.alerts.filter(a => a.at < t('23:59'));
     expect(today.map(a => `${a.step.name}@${new Date(a.at).getHours()}`)).toEqual([
       'Hylogel@9',
@@ -232,6 +234,23 @@ describe('notification plan', () => {
     expect(due.lastAlertAt).toBe(t('09:20'));
     const repeat = plan.alerts.find(a => a.notifId === stepNotifId(EYES_AM, 0))!;
     expect(repeat).toMatchObject({ kind: 'repeat', at: t('09:30') });
+  });
+
+  it('rings again at most 6 times, then stays quietly', () => {
+    const data = setup();
+    const at = (min: number) => planNotifications(data, t('09:00') + min * MINUTE);
+    expect(at(55).alerts.find(a => a.notifId === stepNotifId(EYES_AM, 0))?.at).toBe(t('10:00'));
+    const after = at(61);
+    expect(after.alerts.find(a => a.notifId === stepNotifId(EYES_AM, 0))).toBeUndefined();
+    expect(after.due.find(d => d.run.id === EYES_AM)).toMatchObject({ visible: true, lastAlertAt: t('10:00') });
+  });
+
+  it('plans nothing while paused', () => {
+    const data = setup();
+    data.settings.paused = true;
+    const plan = planNotifications(data, t('09:05'));
+    expect(plan.alerts).toEqual([]);
+    expect(plan.due).toEqual([]);
   });
 
   it('stops repeating when the dose counts as missed', () => {
@@ -287,6 +306,8 @@ describe('migration from the old app', () => {
       { name: 'Μάτια (Hylogel)', times: ['15:00'], steps: ['Hylogel+0'] },
       { name: 'Παυσίπονο', times: ['09:00', '15:00', '21:00'], steps: ['Depon+0'] },
     ]);
+    // The old hard-coded doctor's instructions are kept as notes.
+    expect(data.prescription.notes).toContain('Lacrimmune αλοιφή');
   });
 
   it('follows per-step chain hours of longer chains', () => {

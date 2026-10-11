@@ -103,6 +103,16 @@ export const formatMinutes = (min: number): string => {
   return rest ? `${hours} ${rest}′` : hours;
 };
 
+/** "20 λεπτά", "1 ώρα και 30 λεπτά" – plain words, for notifications (some watches can't show ′). */
+export const formatMinutesWords = (min: number): string => {
+  const m = Math.round(min);
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  const hours = h === 0 ? '' : h === 1 ? '1 ώρα' : `${h} ώρες`;
+  const minutes = rest === 0 ? '' : rest === 1 ? '1 λεπτό' : `${rest} λεπτά`;
+  return [hours, minutes].filter(Boolean).join(' και ') || '0 λεπτά';
+};
+
 /** Human countdown/age, e.g. "σε 12′" or "πριν 1 ώρα 5′". */
 export const formatFromNow = (t: number, now: number): string => {
   const diff = Math.round((t - now) / MINUTE);

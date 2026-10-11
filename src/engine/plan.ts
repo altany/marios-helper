@@ -9,6 +9,9 @@ import { listRuns, RunView, StepView } from './runs';
 /** How far ahead alarms are scheduled. Refreshed every time the app or a notification is used. */
 export const HORIZON_DAYS = 7;
 
+/** An unanswered reminder rings again at most this many times, then stays quietly in the drawer. */
+export const MAX_REPEATS = 6;
+
 export interface PlannedAlert {
   notifId: string;
   run: RunView;
@@ -50,6 +53,7 @@ export const planNotifications = (data: AppData, now: number): NotificationPlan 
   const back = Math.ceil(missAfterMin / (24 * 60)) + 1;
 
   const plan: NotificationPlan = { alerts: [], due: [], countdowns: [] };
+  if (data.settings.paused) return plan;
 
   for (const run of listRuns(data, addDays(today, -back), addDays(today, HORIZON_DAYS), now)) {
     for (const step of run.steps) {
@@ -62,10 +66,10 @@ export const planNotifications = (data: AppData, now: number): NotificationPlan 
       } else if (step.status === 'due') {
         let lastAlertAt = step.dueAt;
         if (repeat > 0) {
-          const k = Math.floor((now - step.dueAt) / repeat);
+          const k = Math.min(Math.floor((now - step.dueAt) / repeat), MAX_REPEATS);
           lastAlertAt = step.dueAt + k * repeat;
           const next = lastAlertAt + repeat;
-          if (next < step.dueAt + missAfter) {
+          if (k < MAX_REPEATS && next < step.dueAt + missAfter) {
             plan.alerts.push({ notifId: step.notifId, run, step, at: next, kind: 'repeat' });
           }
         }

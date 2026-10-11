@@ -29,7 +29,7 @@ export const setupNotifications = async () => {
       {
         id: IOS_CATEGORY,
         actions: [
-          { id: ACTION_GIVE, title: '✓ Το έδωσα' },
+          { id: ACTION_GIVE, title: 'Το έδωσα' },
           { id: ACTION_SNOOZE, title: 'Αργότερα' },
         ],
       },

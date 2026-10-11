@@ -8,10 +8,9 @@ import { nextLine } from '../notify/content';
 import { onPrompt } from '../notify/events';
 import { getData, useData } from '../store/store';
 import { Button, Chip, MedIcon, s, useNow } from './components';
+import { SNOOZE_OPTIONS } from './dose';
 import { radius, useColors } from './theme';
 import { toast } from './toast';
-
-const QUICK_SNOOZE = [5, 10, 15, 30, 60];
 
 type Target = { runId: string; index: number };
 
@@ -100,7 +99,7 @@ export const DosePrompt = () => {
 
           {snoozeOpen ? (
             <View style={s.wrap}>
-              {QUICK_SNOOZE.map(min => (
+              {SNOOZE_OPTIONS.map(min => (
                 <Chip
                   key={min}
                   label={formatMinutes(min)}

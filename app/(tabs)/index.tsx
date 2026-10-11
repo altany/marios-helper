@@ -79,6 +79,27 @@ export default function TodayScreen() {
           </View>
         }
       >
+        {data.settings.paused && (
+          <Card style={{ backgroundColor: c.warnSoft, borderColor: 'transparent' }}>
+            <Text style={[st.progressText, { color: c.text }]}>Οι ειδοποιήσεις είναι σε παύση</Text>
+            <Text style={[s.hint, { color: c.textSoft }]}>
+              Δεν θα έρθει καμία ειδοποίηση μέχρι να τις ενεργοποιήσεις.
+            </Text>
+            <Button
+              small
+              kind="primary"
+              label="Ενεργοποίηση"
+              icon="notifications-outline"
+              style={{ alignSelf: 'flex-start' }}
+              onPress={() =>
+                act(d => {
+                  d.settings.paused = false;
+                })
+              }
+            />
+          </Card>
+        )}
+
         <View style={st.dayNav}>
           <IconButton icon="chevron-back" label="Προηγούμενη μέρα" onPress={() => setDate(addDays(date, -1))} />
           <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 8 }}>

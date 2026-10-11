@@ -7,12 +7,10 @@ import { act, giveStep, skipStep, snoozeStepFor } from '../notify/commands';
 import { nextLine } from '../notify/content';
 import { useData } from '../store/store';
 import { Button, Chip, Divider, s, Sheet, useNow } from './components';
-import { StepLine } from './dose';
+import { SNOOZE_OPTIONS, StepLine } from './dose';
 import { TimePicker } from './pickers';
 import { useColors } from './theme';
 import { toast } from './toast';
-
-export const SNOOZE_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 
 type Mode =
   | { kind: 'main' }

@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Alert, Platform, Share, Text, View } from 'react-native';
+import { MAX_REPEATS } from '../../src/engine/plan';
 import { formatMinutes } from '../../src/lib/time';
 import { defaultData } from '../../src/model/defaults';
 import { AppData, Settings } from '../../src/model/types';
@@ -88,6 +89,17 @@ export default function SettingsScreen() {
     <Screen title="Ρυθμίσεις">
       <SectionTitle>Ειδοποιήσεις</SectionTitle>
       <Card style={{ gap: 14 }}>
+        <SwitchRow
+          label="Ειδοποιήσεις ενεργές"
+          hint={
+            data.settings.paused
+              ? 'Σε παύση: δεν έρχεται καμία ειδοποίηση. Το πρόγραμμα μένει όπως είναι.'
+              : "Κλείσ' το για παύση όλων (π.χ. όταν ο " + data.settings.petName + ' μένει στον κτηνίατρο).'
+          }
+          value={!data.settings.paused}
+          onChange={on => set({ paused: !on })}
+        />
+        <Divider />
         <Field
           label="Όνομα κατοικιδίου"
           defaultValue={data.settings.petName}
@@ -111,15 +123,19 @@ export default function SettingsScreen() {
           value={data.settings.repeatMin}
           onChange={repeatMin => set({ repeatMin })}
         />
+        <Text style={[s.hint, { color: c.textMuted }]}>
+          Έως {MAX_REPEATS} φορές. Μετά μένει στις ειδοποιήσεις χωρίς ήχο, μέχρι να πατήσεις κουμπί.
+        </Text>
         <Divider />
         <Text style={[s.label, { color: c.textSoft }]}>Η δόση θεωρείται χαμένη μετά από</Text>
         <Choice
-          options={minutes([60, 120, 240, 360, 720])}
+          options={minutes([120, 240, 360, 720, 1440])}
           value={data.settings.missAfterMin}
           onChange={missAfterMin => set({ missAfterMin })}
         />
         <Text style={[s.hint, { color: c.textMuted }]}>
-          Μετά από αυτό η ειδοποίηση φεύγει. Μπορείς πάντα να τη σημειώσεις από την οθόνη «Σήμερα».
+          Μέχρι τότε η ειδοποίηση μένει μέχρι να πατήσεις «Το έδωσα» ή «Αργότερα». Μετά φεύγει μόνη της. Μπορείς πάντα
+          να σημειώσεις τη δόση από την οθόνη «Σήμερα».
         </Text>
         <Divider />
         <SwitchRow
