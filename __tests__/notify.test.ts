@@ -55,7 +55,8 @@ import { atTime } from '../src/lib/time';
 import { CH_DOSE, CH_DOSE_QUIET } from '../src/notify/channels';
 import { handleEvent } from '../src/notify/events';
 import { syncNotifications } from '../src/notify/sync';
-import { getData, update } from '../src/store/store';
+import { getData, replaceAll, update } from '../src/store/store';
+import { sampleData } from './fixtures';
 
 const DAY = '2026-10-12';
 const t = (hhmm: string) => atTime(DAY, hhmm);
@@ -76,7 +77,8 @@ const press = (id: string, action: string) =>
 beforeAll(async () => {
   jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
   at('07:00');
-  await getData(); // fresh install: default schedule created at 07:00
+  await getData(); // fresh install starts empty…
+  await replaceAll(sampleData(Date.now())); // …then Mario's schedule is entered at 07:00
 });
 
 it('schedules the day ahead', async () => {

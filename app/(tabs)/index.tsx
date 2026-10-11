@@ -156,7 +156,15 @@ export default function TodayScreen() {
         {next && <NextCard run={next.run} step={next.step} now={now} onPress={() => setOpenRun(next.run.id)} />}
 
         <SectionTitle>{isPast ? 'Τι δόθηκε' : 'Πρόγραμμα ημέρας'}</SectionTitle>
-        {runs.length === 0 ? (
+        {data.routines.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon="paw-outline"
+              text="Δεν υπάρχει ακόμα πρόγραμμα. Ξεκίνα με μια ρουτίνα: ποιο φάρμακο και τι ώρες."
+            />
+            <Button label="Νέα ρουτίνα" kind="primary" icon="add" onPress={() => router.push('/routine/new')} />
+          </Card>
+        ) : runs.length === 0 ? (
           <Card>
             <EmptyState
               icon="moon-outline"
@@ -175,9 +183,11 @@ export default function TodayScreen() {
             onPress={() => setShiftOpen(true)}
           />
         )}
-        <Text style={[s.hint, { color: c.textMuted, textAlign: 'center' }]}>
-          Πάτα μια δόση για να αλλάξεις την ώρα της, να την παραλείψεις ή να τη σημειώσεις.
-        </Text>
+        {runs.length > 0 && (
+          <Text style={[s.hint, { color: c.textMuted, textAlign: 'center' }]}>
+            Πάτα μια δόση για να αλλάξεις την ώρα της, να την παραλείψεις ή να τη σημειώσεις.
+          </Text>
+        )}
       </Screen>
 
       <RunSheet runId={openRun} onClose={() => setOpenRun(null)} />

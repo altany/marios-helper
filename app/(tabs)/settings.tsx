@@ -82,7 +82,7 @@ export default function SettingsScreen() {
         text: 'Σβήσιμο όλων',
         style: 'destructive',
         onPress: async () => {
-          await replaceAll(defaultData(Date.now()));
+          await replaceAll(defaultData());
           await syncNotifications();
           toast('Έγινε επαναφορά');
         },

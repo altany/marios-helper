@@ -22,6 +22,7 @@ import {
 } from '../src/engine/runs';
 import { atTime, everyHours, MINUTE } from '../src/lib/time';
 import { defaultData } from '../src/model/defaults';
+import { sampleData } from './fixtures';
 import { migrateV2 } from '../src/model/migrate';
 import { AppData } from '../src/model/types';
 
@@ -29,9 +30,18 @@ const DAY = '2026-10-12';
 const t = (hhmm: string, day = DAY) => atTime(day, hhmm);
 
 /** Fresh default data, created the day before so all of DAY's runs exist. */
-const setup = (): AppData => defaultData(t('08:00', '2026-10-11'));
+const setup = (): AppData => sampleData(t('08:00', '2026-10-11'));
 
 const EYES_AM = runId('eyes-am-pm', DAY, '09:00');
+
+describe('fresh install', () => {
+  it('starts with no medicines and no routines', () => {
+    const data = defaultData();
+    expect(data.meds).toEqual([]);
+    expect(data.routines).toEqual([]);
+    expect(planNotifications(data, t('08:00')).alerts).toEqual([]);
+  });
+});
 
 describe('runs', () => {
   it('lists every run of the day in time order', () => {
@@ -143,7 +153,7 @@ describe('runs', () => {
   });
 
   it('does not create runs from before the routine existed', () => {
-    const data = defaultData(t('10:00'));
+    const data = sampleData(t('10:00'));
     const times = runsForDay(data, DAY, t('10:00')).map(r => r.time);
     expect(times).toEqual(['15:00', '15:00', '21:00', '21:00']);
   });
