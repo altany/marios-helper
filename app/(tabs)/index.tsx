@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -35,7 +35,7 @@ import {
 } from '../../src/ui/components';
 import { RunCard } from '../../src/ui/dose';
 import { RunSheet } from '../../src/ui/RunSheet';
-import { useColors } from '../../src/ui/theme';
+import { Colors, rounded, useColors } from '../../src/ui/theme';
 import { toast } from '../../src/ui/toast';
 
 export default function TodayScreen() {
@@ -77,7 +77,10 @@ export default function TodayScreen() {
         right={
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <IconButton icon="stats-chart-outline" label="Ιστορικό" onPress={() => router.push('/history')} />
-            <Image source={require('../../assets/images/mario-avatar.png')} style={st.avatar} />
+            <Image
+              source={require('../../assets/images/mario-avatar.png')}
+              style={[st.avatar, { borderColor: c.bandana }]}
+            />
           </View>
         }
       >
@@ -129,16 +132,19 @@ export default function TodayScreen() {
         </View>
 
         {total > 0 && (isToday || isPast) && (
-          <Card style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Card style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={[st.progressText, { color: c.text }]}>
                 Δόθηκαν {given} από {total}
               </Text>
-              {given === total && <Text style={{ color: c.success, fontWeight: '800' }}>Μπράβο! 🐾</Text>}
+              {given === total && (
+                <View style={st.bravo}>
+                  <MaterialCommunityIcons name="bone" size={18} color={c.success} />
+                  <Text style={[st.bravoText, { color: c.success }]}>Μπράβο {data.settings.petName}!</Text>
+                </View>
+              )}
             </View>
-            <View style={[st.bar, { backgroundColor: c.input }]}>
-              <View style={[st.barFill, { backgroundColor: c.success, width: `${(given / total) * 100}%` }]} />
-            </View>
+            <PawTrail runs={runs} c={c} />
           </Card>
         )}
 
@@ -159,7 +165,7 @@ export default function TodayScreen() {
         {data.routines.length === 0 ? (
           <Card>
             <EmptyState
-              icon="paw-outline"
+              dog="dog-side"
               text="Δεν υπάρχει ακόμα πρόγραμμα. Ξεκίνα με μια ρουτίνα: ποιο φάρμακο και τι ώρες."
             />
             <Button label="Νέα ρουτίνα" kind="primary" icon="add" onPress={() => router.push('/routine/new')} />
@@ -167,8 +173,10 @@ export default function TodayScreen() {
         ) : runs.length === 0 ? (
           <Card>
             <EmptyState
-              icon="moon-outline"
-              text={isPast ? 'Δεν υπάρχει τίποτα καταγεγραμμένο.' : 'Κανένα φάρμακο αυτή τη μέρα.'}
+              dog={isPast ? 'dog-side' : 'bone'}
+              text={
+                isPast ? 'Δεν υπάρχει τίποτα καταγεγραμμένο.' : 'Κανένα φάρμακο αυτή τη μέρα. Μόνο βόλτες και κόκαλα!'
+              }
             />
           </Card>
         ) : (
@@ -253,10 +261,10 @@ const DueCard = ({
           style={{ flex: 2 }}
           label="Το έδωσα"
           kind="success"
-          icon="checkmark-circle"
+          icon="paw"
           onPress={async () => {
             await giveStep(run.id, step.index);
-            toast(`${step.name} ✓`);
+            toast(`${step.name}: δόθηκε`);
           }}
         />
         <Button
@@ -275,6 +283,37 @@ const DueCard = ({
     </Card>
   );
 };
+
+/** One paw print per dose of the day, filled in as they are given. */
+const PawTrail = ({ runs, c }: { runs: RunView[]; c: Colors }) => (
+  <View style={st.trail}>
+    {runs
+      .flatMap(run => run.steps)
+      .map((step, i) => {
+        const filled = step.status === 'given' || step.status === 'skipped';
+        const color = {
+          given: c.accent,
+          skipped: c.textMuted,
+          missed: c.danger,
+          due: c.warn,
+          waiting: c.textMuted,
+          upcoming: c.textMuted,
+        }[step.status];
+        return (
+          <Ionicons
+            key={step.notifId}
+            name={filled ? 'paw' : 'paw-outline'}
+            size={20}
+            color={color}
+            style={{
+              opacity: step.status === 'skipped' ? 0.5 : 1,
+              transform: [{ rotate: i % 2 ? '14deg' : '-14deg' }, { translateY: i % 2 ? 3 : -3 }],
+            }}
+          />
+        );
+      })}
+  </View>
+);
 
 const NextCard = ({ run, step, now, onPress }: { run: RunView; step: StepView; now: number; onPress: () => void }) => {
   const c = useColors();
@@ -300,10 +339,10 @@ const NextCard = ({ run, step, now, onPress }: { run: RunView; step: StepView; n
         <Button
           small
           label="Το έδωσα ήδη"
-          icon="checkmark"
+          icon="paw"
           onPress={async () => {
             await giveStep(run.id, step.index);
-            toast(`${step.name} ✓`);
+            toast(`${step.name}: δόθηκε`);
           }}
         />
       )}
@@ -312,17 +351,18 @@ const NextCard = ({ run, step, now, onPress }: { run: RunView; step: StepView; n
 };
 
 const st = StyleSheet.create({
-  avatar: { width: 46, height: 46, borderRadius: 23 },
+  avatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5 },
   dayNav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressText: { fontSize: 16, fontWeight: '700' },
-  bar: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  barFill: { height: 8, borderRadius: 4 },
+  bravo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  bravoText: { fontSize: 15, fontWeight: '800' },
+  trail: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
   dueHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dueKicker: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
   dueMed: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  dueName: { fontSize: 24, fontWeight: '800' },
+  dueName: { ...rounded, fontSize: 25, lineHeight: 31 },
   dueDose: { fontSize: 16, lineHeight: 22 },
-  nextName: { fontSize: 20, fontWeight: '800' },
+  nextName: { ...rounded, fontSize: 20, lineHeight: 26 },
   nextTime: { fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
   more: { width: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

@@ -85,7 +85,7 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
           Το επόμενο φάρμακο της σειράς υπολογίζεται από αυτή την ώρα.
         </Text>
         <TimePicker value={mode.value} onChange={value => setMode({ ...mode, value })} />
-        <Button label={`Δόθηκε στις ${mode.value}`} kind="success" icon="checkmark" onPress={save} />
+        <Button label={`Δόθηκε στις ${mode.value}`} kind="success" icon="paw" onPress={save} />
         <Button label="Πίσω" kind="ghost" onPress={() => setMode({ kind: 'main' })} />
       </Sheet>
     );
@@ -136,10 +136,10 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
               <Button
                 label="Το έδωσα τώρα"
                 kind="success"
-                icon="checkmark-circle"
+                icon="paw"
                 onPress={async () => {
                   await giveStep(run.id, step.index);
-                  toast(`${step.name} ✓`);
+                  toast(`${step.name}: δόθηκε`);
                 }}
               />
               <View style={{ flexDirection: 'row', gap: 8 }}>

@@ -13,15 +13,25 @@ export const TEST_NOTIFICATION_ID = 'test-notification';
 
 type PromptTarget = { runId: string; index: number };
 const promptListeners = new Set<(t: PromptTarget) => void>();
+// A request made before the screen is ready (e.g. app opened from a notification
+// while the font loads) waits here for the first listener.
+let pendingPrompt: PromptTarget | null = null;
 
 /** The app listens here to open the dose screen when a notification is tapped or fires. */
 export const onPrompt = (listener: (t: PromptTarget) => void) => {
   promptListeners.add(listener);
+  if (pendingPrompt) {
+    listener(pendingPrompt);
+    pendingPrompt = null;
+  }
   return () => {
     promptListeners.delete(listener);
   };
 };
-export const requestPrompt = (t: PromptTarget) => promptListeners.forEach(l => l(t));
+export const requestPrompt = (t: PromptTarget) => {
+  if (promptListeners.size === 0) pendingPrompt = t;
+  else promptListeners.forEach(l => l(t));
+};
 
 const targetOf = (event: Event): PromptTarget | null => {
   const data = event.detail.notification?.data;

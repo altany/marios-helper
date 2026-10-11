@@ -75,7 +75,7 @@ export default function ScheduleScreen() {
     <>
       <Screen title="Πρόγραμμα" subtitle={`Μια συνηθισμένη μέρα του ${data.settings.petName}`}>
         <Card style={{ gap: 0, paddingVertical: 6 }}>
-          {times.length === 0 && <EmptyState icon="calendar-outline" text="Δεν υπάρχει πρόγραμμα ακόμα." />}
+          {times.length === 0 && <EmptyState dog="dog-side" text="Δεν υπάρχει πρόγραμμα ακόμα." />}
           {times.map((t, i) => (
             <View
               key={t}

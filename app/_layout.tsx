@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
@@ -10,12 +11,15 @@ import { setupNotifications } from '../src/notify/health';
 import { syncNotifications } from '../src/notify/sync';
 import { reload } from '../src/store/store';
 import { DosePrompt } from '../src/ui/DosePrompt';
-import { useColors } from '../src/ui/theme';
+import { FONT_ROUNDED, useColors } from '../src/ui/theme';
 import { ToastHost } from '../src/ui/toast';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
   const c = useColors();
+  const [fontLoaded, fontError] = useFonts({
+    [FONT_ROUNDED]: require('../assets/fonts/RoundedMplus1c-ExtraBold.ttf'),
+  });
 
   useEffect(() => {
     setupNotifications()
@@ -39,6 +43,9 @@ export default function RootLayout() {
       sub.remove();
     };
   }, []);
+
+  // Wait for the rounded font (a moment); if it fails, carry on with the normal font.
+  if (!fontLoaded && !fontError) return null;
 
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   return (
