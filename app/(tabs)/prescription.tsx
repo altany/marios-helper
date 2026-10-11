@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 import { hhmmToMinutes, dateKey, daysBetween, formatDate, MONTHS_SHORT, parseDateKey } from '../../src/lib/time';
+import { FIRST_PRESCRIPTION } from '../../src/model/firstPrescription';
 import { kindInfo } from '../../src/model/defaults';
 import { AppData, Medication } from '../../src/model/types';
 import { act } from '../../src/notify/commands';
@@ -180,6 +181,23 @@ export default function PrescriptionScreen() {
         </>
       )}
 
+      <SectionTitle>Αρχική συνταγή</SectionTitle>
+      <Card style={{ gap: 12 }}>
+        <Text style={[st.period, { color: c.accentText }]}>{FIRST_PRESCRIPTION.period}</Text>
+        {FIRST_PRESCRIPTION.meds.map((m, i) => (
+          <View key={m.name} style={{ gap: 2 }}>
+            <Text style={[st.firstName, { color: c.text }]}>
+              Φάρμακο {i + 1}: {m.name}
+            </Text>
+            {m.lines.map(line => (
+              <Text key={line} style={[s.hint, { color: c.textSoft, fontSize: 15, lineHeight: 21 }]}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        ))}
+      </Card>
+
       <SectionTitle>Χρήσιμα για τα μάτια</SectionTitle>
       <Card style={{ backgroundColor: c.cardAlt }}>
         {[
@@ -250,4 +268,6 @@ const st = StyleSheet.create({
   vetIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   visit: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },
   notes: { fontSize: 16, lineHeight: 23, minHeight: 90, textAlignVertical: 'top' },
+  period: { fontSize: 14, fontWeight: '800' },
+  firstName: { fontSize: 16, fontWeight: '800' },
 });

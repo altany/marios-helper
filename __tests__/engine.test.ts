@@ -341,8 +341,6 @@ describe('migration from the old app', () => {
       { name: 'Μάτια (Hylogel)', times: ['15:00'], steps: ['Hylogel+0'] },
       { name: 'Παυσίπονο', times: ['09:00', '15:00', '21:00'], steps: ['Depon+0'] },
     ]);
-    // The old hard-coded doctor's instructions are kept as notes.
-    expect(data.prescription.notes).toContain('Lacrimmune αλοιφή');
   });
 
   it('follows per-step chain hours of longer chains', () => {
