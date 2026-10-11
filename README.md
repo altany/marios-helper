@@ -23,6 +23,19 @@ Meet Mario, my adorable furry friend who needs a bit of extra care! This app rem
 - Light and dark mode. Settings from the previous version are carried over on the first start, and the old "Οδηγίες" text is kept in the prescription notes.
 - Notification texts use plain words (no ✓ or ′ symbols) so they show correctly on a smartwatch.
 
+## New versions on the phone
+
+No laptop needed. Every change merged into `main` goes to the phone by itself (`.github/workflows/deploy.yml` → `scripts/deploy.sh`):
+
+- **Most changes** (screens, texts, logic) arrive as an over-the-air update. The app downloads it on its own and shows "Υπάρχει νέα έκδοση" with a restart button.
+- **Changes to native code** (new native library, permissions, app icon) need a new app. A new APK is built with EAS Build, and the link to install it is in the summary of the "Deploy to phone" run on GitHub.
+
+One-time setup:
+
+1. On expo.dev: Account settings → Access tokens → create a token.
+2. On GitHub: this repo → Settings → Secrets and variables → Actions → New repository secret, name `EXPO_TOKEN`, value the token.
+3. The first run makes an APK. Install it on the phone once (open the link, tap Install). From then on, updates arrive by themselves.
+
 ## How it works (for developers)
 
 - Expo SDK 51 + expo-router. Notifications use [Notifee](https://github.com/invertase/notifee) (`@notifee/react-native`).
@@ -63,9 +76,9 @@ npx expo start
 
 The screens also open in a browser (`npm run web`), but notifications only work on a phone.
 
-### Build the APK (Android)
+### Build the APK on a laptop (not needed normally)
 
-This version removes the old native files, so the `android/` folder must be generated again once:
+The deploy workflow above builds it in the cloud. To build locally instead, generate the `android/` folder (this version removes the old native files):
 
 ```bash
 npx expo prebuild --clean -p android

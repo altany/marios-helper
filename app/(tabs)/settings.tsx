@@ -25,6 +25,7 @@ import {
   SwitchRow,
 } from '../../src/ui/components';
 import { useColors } from '../../src/ui/theme';
+import { updateLabel } from '../../src/updates';
 import { toast } from '../../src/ui/toast';
 
 const minutes = (list: number[], zero?: string) =>
@@ -211,7 +212,8 @@ export default function SettingsScreen() {
       </Card>
 
       <Text style={[s.hint, { color: c.textMuted, textAlign: 'center', marginTop: 8 }]}>
-        Mario · έκδοση {Constants.expoConfig?.version ?? '—'} · 🐾
+        Mario · έκδοση {Constants.expoConfig?.version ?? '—'}
+        {updateLabel() ? ` · ${updateLabel()}` : ''} · 🐾
       </Text>
 
       <Sheet visible={importOpen} onClose={() => setImportOpen(false)} title="Επαναφορά από αντίγραφο">

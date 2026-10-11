@@ -18,6 +18,7 @@ import { caps } from '../../src/lib/text';
 import { act, giveStep, snoozeStepFor } from '../../src/notify/commands';
 import { nextLine } from '../../src/notify/content';
 import { useData } from '../../src/store/store';
+import { restartWithUpdate, useUpdateReady } from '../../src/updates';
 import {
   Button,
   Card,
@@ -46,6 +47,7 @@ export default function TodayScreen() {
   const [date, setDate] = useState(today);
   const [openRun, setOpenRun] = useState<string | null>(null);
   const [shiftOpen, setShiftOpen] = useState(false);
+  const updateReady = useUpdateReady();
 
   useEffect(() => {
     if (params.date) setDate(params.date);
@@ -79,6 +81,23 @@ export default function TodayScreen() {
           </View>
         }
       >
+        {updateReady && (
+          <Card style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
+            <Text style={[st.progressText, { color: c.text }]}>Υπάρχει νέα έκδοση</Text>
+            <Text style={[s.hint, { color: c.textSoft }]}>
+              Κατέβηκε ήδη. Πάτα για να ξεκινήσει η εφαρμογή με τη νέα έκδοση.
+            </Text>
+            <Button
+              small
+              kind="primary"
+              label="Επανεκκίνηση"
+              icon="refresh"
+              style={{ alignSelf: 'flex-start' }}
+              onPress={restartWithUpdate}
+            />
+          </Card>
+        )}
+
         {data.settings.paused && (
           <Card style={{ backgroundColor: c.warnSoft, borderColor: 'transparent' }}>
             <Text style={[st.progressText, { color: c.text }]}>Οι ειδοποιήσεις είναι σε παύση</Text>

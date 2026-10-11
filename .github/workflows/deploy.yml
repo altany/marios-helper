@@ -1,0 +1,32 @@
+name: Deploy to phone
+
+# Every change that lands on main goes to the phone: as an over-the-air update
+# when possible, or as a new app to install when native code changed.
+# Needs the EXPO_TOKEN secret (expo.dev → Account settings → Access tokens).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: ./scripts/deploy.sh
