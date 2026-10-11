@@ -46,8 +46,10 @@ export const setupNotifications = async () => {
 
 export type Check = {
   key: string;
+  /** Says how things are now, e.g. "Η μπαταρία περιορίζει την εφαρμογή". */
   label: string;
-  ok: boolean;
+  /** null: nothing to check, just a setting worth a look. */
+  ok: boolean | null;
   help: string;
   fix?: () => Promise<void>;
   fixLabel?: string;
@@ -59,42 +61,53 @@ export const runChecks = async (): Promise<Check[]> => {
   const checks: Check[] = [];
   const settings = await notifee.getNotificationSettings();
 
+  const allowed = settings.authorizationStatus === AuthorizationStatus.AUTHORIZED;
   checks.push({
     key: 'permission',
-    label: 'Άδεια για ειδοποιήσεις',
-    ok: settings.authorizationStatus === AuthorizationStatus.AUTHORIZED,
-    help: 'Χωρίς αυτή δεν εμφανίζεται καμία ειδοποίηση.',
+    label: allowed ? 'Οι ειδοποιήσεις επιτρέπονται' : 'Οι ειδοποιήσεις δεν επιτρέπονται',
+    ok: allowed,
+    help: allowed
+      ? 'Εντάξει.'
+      : 'Χωρίς αυτή την άδεια δεν εμφανίζεται καμία ειδοποίηση. Πάτα «Άνοιγμα» και επέτρεψέ τες.',
     fix: () => notifee.openNotificationSettings(),
     fixLabel: 'Άνοιγμα',
   });
 
   if (Platform.OS === 'android') {
+    const channelOn = !(await notifee.isChannelBlocked(CH_DOSE));
     checks.push({
       key: 'channel',
-      label: 'Ειδοποιήσεις φαρμάκων ενεργές',
-      ok: !(await notifee.isChannelBlocked(CH_DOSE)),
+      label: channelOn ? 'Οι ειδοποιήσεις φαρμάκων είναι ανοιχτές' : 'Οι ειδοποιήσεις φαρμάκων είναι κλειστές',
+      ok: channelOn,
       help: 'Εδώ ρυθμίζεις και τον ήχο ή αν περνάει το «Μην ενοχλείτε».',
       fix: () => notifee.openNotificationSettings(CH_DOSE),
       fixLabel: 'Ήχος & ρυθμίσεις',
     });
 
     if (settings.android.alarm !== AndroidNotificationSetting.NOT_SUPPORTED) {
+      const exact = settings.android.alarm === AndroidNotificationSetting.ENABLED;
       checks.push({
         key: 'alarm',
-        label: 'Ακριβής ώρα (ξυπνητήρια)',
-        ok: settings.android.alarm === AndroidNotificationSetting.ENABLED,
-        help: 'Χωρίς αυτή, το κινητό μπορεί να καθυστερήσει τις ειδοποιήσεις μερικά λεπτά.',
+        label: exact ? 'Οι ειδοποιήσεις έρχονται στην ακριβή ώρα' : 'Οι ειδοποιήσεις μπορεί να αργούν',
+        ok: exact,
+        help: exact
+          ? 'Εντάξει.'
+          : 'Λείπει η άδεια «Ξυπνητήρια και υπενθυμίσεις». Χωρίς αυτή, το κινητό μπορεί να τις καθυστερήσει μερικά λεπτά.',
         fix: () => notifee.openAlarmPermissionSettings(),
         fixLabel: 'Άνοιγμα',
       });
     }
 
-    const batteryOptimized = await notifee.isBatteryOptimizationEnabled();
+    const batteryLimited = await notifee.isBatteryOptimizationEnabled();
     checks.push({
       key: 'battery',
-      label: 'Χωρίς περιορισμό μπαταρίας',
-      ok: !batteryOptimized,
-      help: 'Διάλεξε «Χωρίς περιορισμούς» για την εφαρμογή, αλλιώς το κινητό μπορεί να την κλείνει.',
+      label: batteryLimited
+        ? 'Η εξοικονόμηση μπαταρίας περιορίζει την εφαρμογή'
+        : 'Η μπαταρία δεν περιορίζει την εφαρμογή',
+      ok: !batteryLimited,
+      help: batteryLimited
+        ? 'Πάτα «Άνοιγμα» και στη «Χρήση μπαταρίας» διάλεξε «Χωρίς περιορισμούς». Αν είναι «Περιορισμένη», το κινητό μπορεί να μη στείλει καθόλου τις ειδοποιήσεις.'
+        : 'Εντάξει.',
       fix: () => notifee.openBatteryOptimizationSettings(),
       fixLabel: 'Άνοιγμα',
     });
@@ -103,9 +116,9 @@ export const runChecks = async (): Promise<Check[]> => {
     if (power.activity) {
       checks.push({
         key: 'power',
-        label: `Ρυθμίσεις ${power.manufacturer ?? 'κατασκευαστή'}`,
-        ok: true,
-        help: 'Κάποια κινητά (Samsung, OnePlus, Xiaomi κ.ά.) έχουν δική τους εξοικονόμηση. Επέτρεψε στην εφαρμογή να τρέχει στο παρασκήνιο.',
+        label: `Ρυθμίσεις ${power.manufacturer ?? 'κατασκευαστή'} (για σιγουριά)`,
+        ok: null,
+        help: 'Κάποια κινητά (Samsung, OnePlus, Xiaomi κ.ά.) έχουν και δική τους εξοικονόμηση, που δεν μπορώ να ελέγξω. Αν υπάρχει, επέτρεψε στην εφαρμογή να τρέχει στο παρασκήνιο.',
         fix: () => notifee.openPowerManagerSettings(),
         fixLabel: 'Άνοιγμα',
       });
