@@ -100,6 +100,8 @@ export interface Settings {
   countdown: boolean;
   /** Sound keeps playing until the notification is looked at. */
   insistent: boolean;
+  /** The dose notification barks instead of the phone's usual sound. */
+  bark: boolean;
 }
 
 export interface Prescription {

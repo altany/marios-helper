@@ -39,7 +39,8 @@
     },
     "plugins": [
       "expo-router",
-      "./plugins/withNotificationIcon"
+      "./plugins/withNotificationIcon",
+      "./plugins/withNotificationSound"
     ],
     "extra": {
       "router": {

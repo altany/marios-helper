@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { getData } from '../store/store';
 import { ACCENT } from '../ui/theme';
-import { cleanupOldVersion, CH_DOSE, createChannels } from './channels';
+import { cleanupOldVersion, createChannels, doseChannel } from './channels';
 import { ACTION_GIVE, ACTION_SNOOZE, IOS_CATEGORY } from './content';
 import notifee, {
   AndroidCategory,
@@ -75,13 +75,14 @@ export const runChecks = async (): Promise<Check[]> => {
   });
 
   if (Platform.OS === 'android') {
-    const channelOn = !(await notifee.isChannelBlocked(CH_DOSE));
+    const channel = doseChannel((await getData()).settings);
+    const channelOn = !(await notifee.isChannelBlocked(channel));
     checks.push({
       key: 'channel',
       label: channelOn ? 'Οι ειδοποιήσεις φαρμάκων είναι ανοιχτές' : 'Οι ειδοποιήσεις φαρμάκων είναι κλειστές',
       ok: channelOn,
       help: 'Εδώ ρυθμίζεις και τον ήχο ή αν περνάει το «Μην ενοχλείτε».',
-      fix: () => notifee.openNotificationSettings(CH_DOSE),
+      fix: () => notifee.openNotificationSettings(channel),
       fixLabel: 'Ήχος & ρυθμίσεις',
     });
 
@@ -150,7 +151,7 @@ export const sendTestNotification = async (seconds = 5) => {
       subtitle: 'Δοκιμή',
       body: '<b>Δοκιμαστική ειδοποίηση</b><br>Έτσι θα φαίνεται η ειδοποίηση για κάθε φάρμακο.',
       android: {
-        channelId: CH_DOSE,
+        channelId: doseChannel(settings),
         category: AndroidCategory.REMINDER,
         importance: AndroidImportance.HIGH,
         smallIcon: 'ic_stat_paw',

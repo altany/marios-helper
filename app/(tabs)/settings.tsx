@@ -157,6 +157,12 @@ export default function SettingsScreen() {
           onChange={countdown => set({ countdown })}
         />
         <SwitchRow
+          label="Γάβγισμα"
+          hint="Η ειδοποίηση για κάθε δόση γαβγίζει αντί για τον συνηθισμένο ήχο του κινητού."
+          value={data.settings.bark}
+          onChange={bark => set({ bark })}
+        />
+        <SwitchRow
           label="Επίμονος ήχος"
           hint="Ο ήχος επαναλαμβάνεται μέχρι να δεις την ειδοποίηση. Σαν ξυπνητήρι."
           value={data.settings.insistent}
