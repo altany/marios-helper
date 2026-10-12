@@ -50,9 +50,11 @@ jest.mock('../src/notify/driver', () => {
 });
 
 import { EventType } from '@notifee/react-native/dist/types/Notification';
-import { runId, stepNotifId } from '../src/engine/runs';
+import { markStep } from '../src/engine/actions';
+import { runId, runsForDay, stepNotifId } from '../src/engine/runs';
 import { atTime } from '../src/lib/time';
 import { CH_DOSE, CH_DOSE_QUIET } from '../src/notify/channels';
+import { BRAVO_ID } from '../src/notify/content';
 import { handleEvent } from '../src/notify/events';
 import { syncNotifications } from '../src/notify/sync';
 import { getData, replaceAll, update } from '../src/store/store';
@@ -84,6 +86,10 @@ beforeAll(async () => {
 it('schedules the day ahead', async () => {
   await syncNotifications();
   expect(mockNotifs.triggers.get(HYLOGEL)?.trigger.timestamp).toBe(t('09:00'));
+  const { notification } = mockNotifs.triggers.get(HYLOGEL)!;
+  expect(notification.title).toBe('Ώρα για Hylogel, Μάριο!');
+  // Notifee reads the text as HTML, so new lines must be <br>.
+  expect(notification.android.style.text).toBe('<b>1 σταγόνα σε κάθε μάτι</b><br><i>Μετά: Lacrimmune σε 20 λεπτά</i>');
   expect(mockNotifs.triggers.has(LACRIMMUNE)).toBe(false); // only after Hylogel is given
   expect(mockNotifs.triggers.size).toBeGreaterThan(30); // about a week
 });
@@ -96,6 +102,7 @@ it('repeats an unanswered reminder', async () => {
     false,
   );
   expect(mockNotifs.triggers.get(HYLOGEL)?.trigger.timestamp).toBe(t('09:10'));
+  expect(mockNotifs.triggers.get(HYLOGEL)?.notification.title).toBe('Ξέχασες το Hylogel;');
   expect(mockNotifs.displayed.has(HYLOGEL)).toBe(true);
 });
 
@@ -156,4 +163,22 @@ it('moves one reminder to another time only that day', async () => {
   await syncNotifications();
   expect(mockNotifs.triggers.get(stepNotifId(evening, 0))?.trigger.timestamp).toBe(t('22:15'));
   expect(mockNotifs.triggers.get(stepNotifId(tomorrow, 0))?.trigger.timestamp).toBe(atTime('2026-10-13', '21:00'));
+});
+
+it('says well done after the last dose of the day', async () => {
+  at('22:20');
+  const open = runsForDay(await getData(), DAY, Date.now())
+    .flatMap(run => run.steps.map(step => ({ run, step })))
+    .filter(({ step }) => step.status !== 'given' && step.status !== 'skipped');
+  const last = open.pop()!;
+  await update(d => {
+    for (const { run, step } of open) markStep(d, run.id, step.index, 'given', Date.now());
+  });
+  expect(mockNotifs.displayed.has(BRAVO_ID)).toBe(false);
+
+  const notification = { id: last.step.notifId, data: { runId: last.run.id, index: String(last.step.index) } };
+  await handleEvent({ type: EventType.ACTION_PRESS, detail: { notification, pressAction: { id: 'give' } } }, false);
+  const bravo = mockNotifs.displayed.get(BRAVO_ID)?.notification;
+  expect(bravo?.title).toBe('Μπράβο Μάριο!');
+  expect(bravo?.body).toContain('Επόμενο: αύριο στις 09:00');
 });

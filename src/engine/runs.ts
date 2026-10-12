@@ -212,6 +212,12 @@ export const dueSteps = (data: AppData, now: number) => {
     .sort((a, b) => a.step.dueAt - b.step.dueAt);
 };
 
+/** True when every dose of the day has been answered and at least one was given. */
+export const dayDone = (data: AppData, date: string, now: number) => {
+  const steps = runsForDay(data, date, now).flatMap(run => run.steps);
+  return steps.some(s => s.status === 'given') && steps.every(s => s.status === 'given' || s.status === 'skipped');
+};
+
 /** Next thing that will happen (first upcoming step from now on). */
 export const nextUpcoming = (data: AppData, now: number, days = 7) => {
   const today = dateKey(now);

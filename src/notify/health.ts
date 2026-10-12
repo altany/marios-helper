@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { getData } from '../store/store';
+import { ACCENT } from '../ui/theme';
 import { cleanupOldVersion, CH_DOSE, createChannels } from './channels';
 import { ACTION_GIVE, ACTION_SNOOZE, IOS_CATEGORY } from './content';
 import notifee, {
@@ -145,14 +146,17 @@ export const sendTestNotification = async (seconds = 5) => {
   await notifee.createTriggerNotification(
     {
       id: TEST_NOTIFICATION_ID,
-      title: `${settings.petName} · Δοκιμή`,
-      body: 'Έτσι θα φαίνεται η ειδοποίηση για κάθε φάρμακο.',
+      title: `Ώρα για το φάρμακο, ${settings.petName}!`,
+      subtitle: 'Δοκιμή',
+      body: '<b>Δοκιμαστική ειδοποίηση</b><br>Έτσι θα φαίνεται η ειδοποίηση για κάθε φάρμακο.',
       android: {
         channelId: CH_DOSE,
         category: AndroidCategory.REMINDER,
         importance: AndroidImportance.HIGH,
         smallIcon: 'ic_stat_paw',
         largeIcon: require('../../assets/images/mario-avatar.png'),
+        circularLargeIcon: true,
+        color: ACCENT,
         pressAction: { id: 'default', launchActivity: 'default' },
         actions: [{ title: 'Εντάξει', pressAction: { id: 'ok' } }],
         loopSound: settings.insistent,

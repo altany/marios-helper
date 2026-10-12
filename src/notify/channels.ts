@@ -6,6 +6,7 @@ import notifee, { AndroidImportance, AndroidVisibility } from './driver';
 export const CH_DOSE = 'dose-v1';
 export const CH_DOSE_QUIET = 'dose-quiet-v1';
 export const CH_WAIT = 'countdown-v1';
+export const CH_DONE = 'done-v1';
 
 /** Channels of the previous app version. */
 const OLD_CHANNELS = ['medication-alerts-v2', 'medication-alerts', 'expo_notifications_fallback_notification_channel'];
@@ -37,6 +38,14 @@ export const createChannels = async () => {
     name: 'Αντίστροφη μέτρηση',
     description: 'Δείχνει πόσο μένει μέχρι το επόμενο φάρμακο μιας σειράς.',
     importance: AndroidImportance.LOW,
+    visibility: AndroidVisibility.PUBLIC,
+    vibration: false,
+  });
+  await notifee.createChannel({
+    id: CH_DONE,
+    name: 'Μπράβο',
+    description: 'Όταν δοθούν όλα τα φάρμακα της μέρας. Χωρίς ήχο.',
+    importance: AndroidImportance.DEFAULT,
     visibility: AndroidVisibility.PUBLIC,
     vibration: false,
   });
