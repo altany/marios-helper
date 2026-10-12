@@ -35,6 +35,17 @@ export const atTime = (key: string, hhmm: string): number => {
   return d.getTime();
 };
 
+/**
+ * The moment `hhmm` closest to `around` (at most 12 hours away), so a dose
+ * planned at 23:00 and moved to "00:30" lands after midnight, not 22½ hours earlier.
+ */
+export const nearestAt = (key: string, hhmm: string, around: number): number => {
+  const t = atTime(key, hhmm);
+  if (t < around - 12 * 60 * MINUTE) return atTime(addDays(key, 1), hhmm);
+  if (t > around + 12 * 60 * MINUTE) return atTime(addDays(key, -1), hhmm);
+  return t;
+};
+
 export const toHHMM = (t: number): string => {
   const d = new Date(t);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { markStep, moveRun, resetRunTime, setRunSkipped, unmarkStep } from '../engine/actions';
 import { buildRun, RunView, StepView } from '../engine/runs';
-import { atTime, formatDate, formatMinutes, hhmmToMinutes, MINUTE, minutesToHHMM, toHHMM } from '../lib/time';
+import { atTime, formatDate, formatMinutes, hhmmToMinutes, MINUTE, minutesToHHMM, nearestAt, toHHMM } from '../lib/time';
 import { act, giveStep, skipStep, snoozeStepFor } from '../notify/commands';
 import { nextLine } from '../notify/content';
 import { useData } from '../store/store';
@@ -48,7 +48,7 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
   if (mode.kind === 'time') {
     const shift = (min: number) => setMode({ kind: 'time', value: minutesToHHMM(hhmmToMinutes(mode.value) + min) });
     const save = async () => {
-      const startAt = atTime(run.date, mode.value);
+      const startAt = nearestAt(run.date, mode.value, run.plannedAt);
       await act(d => (startAt === run.plannedAt ? resetRunTime(d, run.id) : moveRun(d, run.id, startAt)));
       toast(`Νέα ώρα: ${mode.value}`);
       setMode({ kind: 'main' });
