@@ -23,7 +23,7 @@ import {
 import { atTime, everyHours, MINUTE } from '../src/lib/time';
 import { defaultData } from '../src/model/defaults';
 import { sampleData } from './fixtures';
-import { migrateV2 } from '../src/model/migrate';
+import { migrateV2, normalize } from '../src/model/migrate';
 import { AppData } from '../src/model/types';
 
 const DAY = '2026-10-12';
@@ -181,6 +181,62 @@ describe('runs', () => {
     expect(everyHours('07:00', 8)).toEqual(['07:00', '15:00', '23:00']);
     expect(everyHours('08:00', 12)).toEqual(['08:00', '20:00']);
     expect(everyHours('07:00', 6)).toEqual(['01:00', '07:00', '13:00', '19:00']);
+  });
+
+  describe('every 8 hours, counted from the previous dose', () => {
+    const PILL = (time: string, day = DAY) => runId('every8', day, time);
+    const every8 = (): AppData => {
+      const data = setup();
+      data.routines.push({
+        id: 'every8',
+        name: 'Κάθε 8 ώρες',
+        times: ['07:00', '15:00', '23:00'],
+        days: [],
+        steps: [{ id: 's8', medId: 'depon', waitMin: 0 }],
+        enabled: true,
+        createdAt: t('08:00', '2026-10-11'),
+        fromGiven: true,
+      });
+      return data;
+    };
+
+    it('keeps the planned time until the previous dose is given', () => {
+      const data = every8();
+      expect(buildRun(data, PILL('15:00'), t('08:00'))!.startAt).toBe(t('15:00'));
+    });
+
+    it('moves the next dose 8 hours after the previous one was given', () => {
+      const data = every8();
+      markStep(data, PILL('07:00'), 0, 'given', t('08:22'));
+      const next = buildRun(data, PILL('15:00'), t('08:30'))!;
+      expect(next.startAt).toBe(t('16:22'));
+      expect(next.followed).toBe(true);
+      expect(next.moved).toBe(false);
+      const alert = planNotifications(data, t('08:30')).alerts.find(a => a.notifId === stepNotifId(PILL('15:00'), 0));
+      expect(alert?.at).toBe(t('16:22')); // the alarm moves too
+
+      // …and the one after that from the second dose, even past midnight.
+      markStep(data, PILL('15:00'), 0, 'given', t('16:40'));
+      expect(buildRun(data, PILL('23:00'), t('17:00'))!.startAt).toBe(t('00:40', '2026-10-13'));
+      // The first dose of the next day stays at its time.
+      expect(buildRun(data, PILL('07:00', '2026-10-13'), t('17:00'))!.startAt).toBe(t('07:00', '2026-10-13'));
+    });
+
+    it('lets a time changed by hand win', () => {
+      const data = every8();
+      markStep(data, PILL('07:00'), 0, 'given', t('08:22'));
+      moveRun(data, PILL('15:00'), t('17:30'));
+      expect(buildRun(data, PILL('15:00'), t('08:30'))!.startAt).toBe(t('17:30'));
+    });
+
+    it('turns on by itself for routines spread around the clock', () => {
+      const data = setup();
+      data.routines.push({ ...data.routines[0], id: 'x', times: ['07:00', '15:00', '23:00'] });
+      const norm = normalize(JSON.parse(JSON.stringify(data)));
+      expect(norm.routines.find(r => r.id === 'x')?.fromGiven).toBe(true);
+      // 09:00 · 21:00 and 09:00 · 15:00 · 21:00 stay at fixed times.
+      expect(norm.routines.filter(r => r.id !== 'x').every(r => r.fromGiven === false)).toBe(true);
+    });
   });
 
   it('leaves out medicines whose treatment ended', () => {

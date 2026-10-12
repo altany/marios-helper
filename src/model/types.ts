@@ -42,6 +42,12 @@ export interface Routine {
   createdAt: number;
   /** "HH:MM" → when that time was added to an existing routine. Same rule, per time. */
   timeAddedAt?: Record<string, number>;
+  /**
+   * Later times of the day count from when the previous time's dose was actually
+   * given, keeping the planned gap (e.g. every 8 hours: 07:00 given at 08:22 →
+   * next at 16:22, not 15:00). The first time of each day stays as planned.
+   */
+  fromGiven?: boolean;
 }
 
 export interface StepMark {

@@ -1,4 +1,4 @@
-import { addDays, atTime, dateKey, MINUTE, weekday } from '../lib/time';
+import { addDays, atTime, dateKey, MINUTE, sortTimes, weekday } from '../lib/time';
 import { AppData, Medication, Routine, RunRecord, RunStep } from '../model/types';
 
 // Turns routines + run records into concrete "runs" for given days, working out
@@ -43,7 +43,10 @@ export interface RunView {
   time: string;
   plannedAt: number;
   startAt: number;
+  /** Moved by hand to another time. */
   moved: boolean;
+  /** Moved by itself, counting from when the previous dose was given (`Routine.fromGiven`). */
+  followed: boolean;
   skipped: boolean;
   steps: StepView[];
   status: RunStatus;
@@ -86,6 +89,19 @@ export const emptyRecord = (id: string): RunRecord => {
   return { id, routineId, date, time, marks: {}, snoozed: {} };
 };
 
+/**
+ * For a routine counted from the previous dose: when this time's dose comes, or
+ * null to keep the planned time (first time of the day, or previous dose not given).
+ */
+const followedStart = (data: AppData, routine: Routine, date: string, time: string, now: number) => {
+  const times = sortTimes(routine.times);
+  const i = times.indexOf(time);
+  if (i <= 0) return null;
+  const prev = buildRun(data, runId(routine.id, date, times[i - 1]), now)?.steps[0];
+  if (prev?.status !== 'given' || prev.markedAt == null) return null;
+  return prev.markedAt + (atTime(date, time) - atTime(date, times[i - 1]));
+};
+
 export const buildRun = (
   data: AppData,
   id: string,
@@ -99,7 +115,9 @@ export const buildRun = (
 
   const missAfter = data.settings.missAfterMin * MINUTE;
   const plannedAt = atTime(date, time);
-  const startAt = record?.startAt ?? plannedAt;
+  const followed =
+    record?.startAt == null && routine?.fromGiven ? followedStart(data, routine, date, time, now) : null;
+  const startAt = record?.startAt ?? followed ?? plannedAt;
   const skipped = !!record?.skipped;
   const marks = record?.marks ?? {};
   const snoozed = record?.snoozed ?? {};
@@ -165,6 +183,7 @@ export const buildRun = (
     plannedAt,
     startAt,
     moved: record?.startAt != null && record.startAt !== plannedAt,
+    followed: followed != null && followed !== plannedAt,
     skipped,
     steps: views,
     status,

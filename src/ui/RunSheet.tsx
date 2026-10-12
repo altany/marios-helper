@@ -119,6 +119,7 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
       <Text style={[s.hint, { color: c.textSoft }]}>
         {formatDate(run.date)}
         {run.moved ? ` · κανονικά στις ${run.time}` : ''}
+        {run.followed ? ` · μετράει από την προηγούμενη δόση (κανονικά ${run.time})` : ''}
       </Text>
 
       {run.steps.map(step => (

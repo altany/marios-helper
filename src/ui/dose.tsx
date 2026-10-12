@@ -118,12 +118,14 @@ export const RunCard = ({ run, now, onPress }: { run: RunView; now: number; onPr
         <Text style={[d.time, { color: run.status === 'done' || run.skipped ? c.textSoft : c.text }]}>
           {toHHMM(run.startAt)}
         </Text>
-        {run.moved && <Text style={[d.oldTime, { color: c.textMuted }]}>{run.time}</Text>}
+        {(run.moved || run.followed) && <Text style={[d.oldTime, { color: c.textMuted }]}>{run.time}</Text>}
       </View>
       <View style={{ flex: 1, gap: 8 }}>
         <View style={d.runHead}>
           <Text style={[d.runName, { color: c.textSoft }]} numberOfLines={1}>
-            {caps(`${run.routineName || 'Ρουτίνα'}${run.moved ? ' · άλλαξε ώρα' : ''}`)}
+            {caps(
+              `${run.routineName || 'Ρουτίνα'}${run.moved ? ' · άλλαξε ώρα' : run.followed ? ' · από την προηγούμενη' : ''}`,
+            )}
           </Text>
           {badge && (
             <View style={[d.badge, { backgroundColor: badge.bg }]}>

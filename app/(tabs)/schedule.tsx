@@ -164,7 +164,7 @@ export default function ScheduleScreen() {
                     <Text
                       style={[
                         st.agendaTime,
-                        { color: run.skipped ? c.textMuted : run.moved ? c.warn : c.text },
+                        { color: run.skipped ? c.textMuted : run.moved || run.followed ? c.warn : c.text },
                         run.skipped && { textDecorationLine: 'line-through' },
                       ]}
                     >
@@ -180,8 +180,14 @@ export default function ScheduleScreen() {
                         {run.steps.map(st2 => st2.name).join(' → ')}
                       </Text>
                     </View>
-                    <Text style={[s.hint, { color: run.skipped ? c.danger : run.moved ? c.warn : c.textMuted }]}>
-                      {run.skipped ? 'Παραλείπεται' : run.moved ? `Άλλαξε από ${run.time}` : run.routineName}
+                    <Text style={[s.hint, { color: run.skipped ? c.danger : run.moved || run.followed ? c.warn : c.textMuted }]}>
+                      {run.skipped
+                        ? 'Παραλείπεται'
+                        : run.moved
+                          ? `Άλλαξε από ${run.time}`
+                          : run.followed
+                            ? `Από την προηγούμενη δόση · κανονικά ${run.time}`
+                            : run.routineName}
                     </Text>
                   </View>
                   <Ionicons name="create-outline" size={20} color={c.textMuted} />
