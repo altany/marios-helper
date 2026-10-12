@@ -1,4 +1,4 @@
-import { sortTimes, pad } from '../lib/time';
+import { hhmmToMinutes, sortTimes, pad } from '../lib/time';
 import { DEFAULT_SETTINGS, MED_COLORS } from './defaults';
 import { AppData, Medication, Routine } from './types';
 
@@ -108,12 +108,24 @@ export const migrateV2 = (old: V2Schedule[], now: number): AppData => {
   };
 };
 
+/** Times spread evenly around the clock, e.g. 07:00 · 15:00 · 23:00 (every 8 hours). */
+const aroundTheClock = (times: string[]) => {
+  if (times.length < 3) return false;
+  const mins = times.map(hhmmToMinutes);
+  const gap = (24 * 60) / mins.length;
+  return mins.every((m, i) => i === 0 || m - mins[i - 1] === gap);
+};
+
 /** Fills in fields added in later versions so older saved data keeps working. */
 export const normalize = (data: AppData): AppData => ({
   ...data,
   version: 3,
   meds: data.meds ?? [],
-  routines: (data.routines ?? []).map(r => ({ ...r, days: r.days ?? [], times: sortTimes(r.times ?? []) })),
+  routines: (data.routines ?? []).map(r => {
+    const times = sortTimes(r.times ?? []);
+    // Added later: routines made with "Κάθε … ώρες" count from the previous dose.
+    return { ...r, days: r.days ?? [], times, fromGiven: r.fromGiven ?? aroundTheClock(times) };
+  }),
   runs: data.runs ?? {},
   settings: { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) },
   prescription: { ...{ vetName: '', vetPhone: '', notes: '' }, ...data.prescription },

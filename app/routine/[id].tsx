@@ -58,6 +58,7 @@ export default function RoutineEditor() {
             steps: med ? [{ id: newId(), medId: med.id, waitMin: 0 }] : [],
             enabled: true,
             createdAt: Date.now(),
+            fromGiven: false,
           },
     );
   }, [data, id, draft, startMed]);
@@ -69,7 +70,14 @@ export default function RoutineEditor() {
   const save = async () => {
     if (draft.steps.length === 0) return Alert.alert('Λείπει φάρμακο', 'Πρόσθεσε τουλάχιστον ένα φάρμακο.');
     if (draft.times.length === 0) return Alert.alert('Λείπει ώρα', 'Πρόσθεσε τουλάχιστον μία ώρα.');
-    await act(d => saveRoutine(d, { ...draft, name: draft.name.trim(), times: sortTimes(draft.times) }));
+    await act(d =>
+      saveRoutine(d, {
+        ...draft,
+        name: draft.name.trim(),
+        times: sortTimes(draft.times),
+        fromGiven: draft.times.length > 1 && !!draft.fromGiven,
+      }),
+    );
     toast('Αποθηκεύτηκε');
     router.back();
   };
@@ -180,6 +188,14 @@ export default function RoutineEditor() {
             />
           ))}
         </View>
+        {draft.times.length > 1 && (
+          <SwitchRow
+            label="Μετράει από την προηγούμενη δόση"
+            hint="Π.χ. 07:00 και 15:00: αν δώσεις την πρώτη στις 08:20, η επόμενη έρχεται 16:20. Η πρώτη δόση κάθε μέρας μένει στην ώρα της."
+            value={!!draft.fromGiven}
+            onChange={fromGiven => patch({ fromGiven })}
+          />
+        )}
       </Card>
 
       <SectionTitle>Φάρμακα με τη σειρά</SectionTitle>
@@ -302,11 +318,14 @@ export default function RoutineEditor() {
               kind="primary"
               icon="checkmark"
               onPress={() => {
-                patch({ times: everyHours(everySheet.first, everySheet.hours) });
+                patch({ times: everyHours(everySheet.first, everySheet.hours), fromGiven: true });
                 setEverySheet(null);
               }}
             />
-            <Text style={[s.hint, { color: c.textMuted }]}>Αντικαθιστά τις ώρες που υπάρχουν ήδη στη ρουτίνα.</Text>
+            <Text style={[s.hint, { color: c.textMuted }]}>
+              Αντικαθιστά τις ώρες που υπάρχουν ήδη στη ρουτίνα. Κάθε δόση μετράει από την ώρα που έδωσες την
+              προηγούμενη.
+            </Text>
           </>
         )}
       </Sheet>
