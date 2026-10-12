@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sticky: true,
   countdown: true,
   insistent: false,
+  bark: true,
 };
 
 /** A fresh install (or "Σβήσιμο όλων") starts empty: medicines are added from the app. */

@@ -2,7 +2,7 @@ import { RunView, StepView } from '../engine/runs';
 import { addDays, dateKey, formatDate, formatMinutes, formatMinutesWords, MINUTE, toHHMM } from '../lib/time';
 import { AppData } from '../model/types';
 import { ACCENT } from '../ui/theme';
-import { CH_DONE, CH_DOSE, CH_DOSE_QUIET, CH_WAIT } from './channels';
+import { CH_DONE, CH_DOSE_QUIET, CH_WAIT, doseChannel } from './channels';
 import { AndroidCategory, AndroidImportance, AndroidStyle, AndroidVisibility, Notification } from './driver';
 
 export const ACTION_GIVE = 'give';
@@ -61,7 +61,7 @@ export const doseNotification = (
     subtitle,
     data: { runId: run.id, index: String(step.index), kind: 'dose' },
     android: {
-      channelId: quiet ? CH_DOSE_QUIET : CH_DOSE,
+      channelId: quiet ? CH_DOSE_QUIET : doseChannel(settings),
       category: AndroidCategory.REMINDER,
       importance: quiet ? AndroidImportance.LOW : AndroidImportance.HIGH,
       visibility: AndroidVisibility.PUBLIC,

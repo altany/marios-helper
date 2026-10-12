@@ -53,7 +53,7 @@ import { EventType } from '@notifee/react-native/dist/types/Notification';
 import { markStep } from '../src/engine/actions';
 import { runId, runsForDay, stepNotifId } from '../src/engine/runs';
 import { atTime } from '../src/lib/time';
-import { CH_DOSE, CH_DOSE_QUIET } from '../src/notify/channels';
+import { CH_DOSE, CH_DOSE_BARK, CH_DOSE_QUIET } from '../src/notify/channels';
 import { BRAVO_ID } from '../src/notify/content';
 import { handleEvent } from '../src/notify/events';
 import { syncNotifications } from '../src/notify/sync';
@@ -120,7 +120,7 @@ it('schedules the next medicine from the moment "Το έδωσα" is pressed', a
   expect(mockNotifs.displayed.has(HYLOGEL)).toBe(false);
   expect(mockNotifs.triggers.has(HYLOGEL)).toBe(false);
   expect(mockNotifs.triggers.get(LACRIMMUNE)?.trigger.timestamp).toBe(t('09:24'));
-  expect(mockNotifs.triggers.get(LACRIMMUNE)?.notification.android.channelId).toBe(CH_DOSE);
+  expect(mockNotifs.triggers.get(LACRIMMUNE)?.notification.android.channelId).toBe(CH_DOSE_BARK);
   expect(mockNotifs.displayed.has(`${LACRIMMUNE}~wait`)).toBe(true); // countdown
 });
 
@@ -181,4 +181,13 @@ it('says well done after the last dose of the day', async () => {
   const bravo = mockNotifs.displayed.get(BRAVO_ID)?.notification;
   expect(bravo?.title).toBe('Μπράβο Μάριο!');
   expect(bravo?.body).toContain('Επόμενο: αύριο στις 09:00');
+});
+
+it('uses the usual sound when barking is off', async () => {
+  await update(d => {
+    d.settings.bark = false;
+  });
+  await syncNotifications();
+  const channels = new Set(Array.from(mockNotifs.triggers.values()).map(n => n.notification.android.channelId));
+  expect(channels).toEqual(new Set([CH_DOSE]));
 });
