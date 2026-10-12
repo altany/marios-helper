@@ -1,4 +1,4 @@
-import { hhmmToMinutes, sortTimes, pad } from '../lib/time';
+import { atTime, DAY, hhmmToMinutes, HOUR, pad, sortTimes } from '../lib/time';
 import { DEFAULT_SETTINGS, MED_COLORS } from './defaults';
 import { AppData, Medication, Routine } from './types';
 
@@ -108,6 +108,20 @@ export const migrateV2 = (old: V2Schedule[], now: number): AppData => {
   };
 };
 
+/**
+ * Before the fix, moving a 23:00 dose to "00:30" put it at 00:30 of the same
+ * day, 22½ hours too early. A moved time more than 12 hours before the planned
+ * one can only mean that, so it moves to the next day.
+ */
+const repairMovedRuns = (runs: AppData['runs']): AppData['runs'] => {
+  const out: AppData['runs'] = {};
+  for (const [id, rec] of Object.entries(runs)) {
+    const planned = atTime(rec.date, rec.time);
+    out[id] = rec.startAt != null && rec.startAt < planned - 12 * HOUR ? { ...rec, startAt: rec.startAt + DAY } : rec;
+  }
+  return out;
+};
+
 /** Times spread evenly around the clock, e.g. 07:00 · 15:00 · 23:00 (every 8 hours). */
 const aroundTheClock = (times: string[]) => {
   if (times.length < 3) return false;
@@ -126,7 +140,7 @@ export const normalize = (data: AppData): AppData => ({
     // Added later: routines made with "Κάθε … ώρες" count from the previous dose.
     return { ...r, days: r.days ?? [], times, fromGiven: r.fromGiven ?? aroundTheClock(times) };
   }),
-  runs: data.runs ?? {},
+  runs: repairMovedRuns(data.runs ?? {}),
   settings: { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) },
   prescription: { ...{ vetName: '', vetPhone: '', notes: '' }, ...data.prescription },
   dismissed: data.dismissed ?? {},

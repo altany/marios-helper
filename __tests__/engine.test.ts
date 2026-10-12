@@ -20,7 +20,7 @@ import {
   runsForDay,
   stepNotifId,
 } from '../src/engine/runs';
-import { atTime, everyHours, MINUTE } from '../src/lib/time';
+import { atTime, everyHours, MINUTE, nearestAt } from '../src/lib/time';
 import { defaultData } from '../src/model/defaults';
 import { sampleData } from './fixtures';
 import { migrateV2, normalize } from '../src/model/migrate';
@@ -220,6 +220,20 @@ describe('runs', () => {
       expect(buildRun(data, PILL('23:00'), t('17:00'))!.startAt).toBe(t('00:40', '2026-10-13'));
       // The first dose of the next day stays at its time.
       expect(buildRun(data, PILL('07:00', '2026-10-13'), t('17:00'))!.startAt).toBe(t('07:00', '2026-10-13'));
+    });
+
+    it('puts a time changed to just after midnight on the next day', () => {
+      expect(nearestAt(DAY, '00:00', t('23:00'))).toBe(t('00:00', '2026-10-13'));
+      expect(nearestAt(DAY, '23:30', t('23:00'))).toBe(t('23:30'));
+      expect(nearestAt(DAY, '23:30', t('00:30'))).toBe(t('23:30', '2026-10-11'));
+      expect(nearestAt(DAY, '16:20', t('15:00'))).toBe(t('16:20'));
+    });
+
+    it('repairs a dose moved to "00:00" of the same day by the old time sheet', () => {
+      const data = every8();
+      moveRun(data, PILL('23:00'), t('00:00')); // what the old sheet saved
+      const fixed = normalize(JSON.parse(JSON.stringify(data)));
+      expect(fixed.runs[PILL('23:00')].startAt).toBe(t('00:00', '2026-10-13'));
     });
 
     it('lets a time changed by hand win', () => {
