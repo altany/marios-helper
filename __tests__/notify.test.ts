@@ -24,9 +24,9 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 jest.mock('../src/notify/driver', () => {
   const enums = {
-    ...jest.requireActual('@notifee/react-native/dist/types/Notification'),
-    ...jest.requireActual('@notifee/react-native/dist/types/NotificationAndroid'),
-    ...jest.requireActual('@notifee/react-native/dist/types/Trigger'),
+    ...jest.requireActual('react-native-notify-kit/dist/types/Notification.js'),
+    ...jest.requireActual('react-native-notify-kit/dist/types/NotificationAndroid.js'),
+    ...jest.requireActual('react-native-notify-kit/dist/types/Trigger.js'),
   };
   const api = {
     getNotificationSettings: async () => ({ authorizationStatus: 1, android: { alarm: 1 } }),
@@ -49,7 +49,7 @@ jest.mock('../src/notify/driver', () => {
   return { __esModule: true, default: api, ...enums };
 });
 
-import { EventType } from '@notifee/react-native/dist/types/Notification';
+import { EventType } from 'react-native-notify-kit/dist/types/Notification.js';
 import { markStep } from '../src/engine/actions';
 import { runId, runsForDay, stepNotifId } from '../src/engine/runs';
 import { atTime } from '../src/lib/time';

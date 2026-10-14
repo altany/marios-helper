@@ -31,6 +31,10 @@ No laptop needed. Every change merged into `main` goes to the phone by itself (`
 - **Most changes** (screens, texts, logic) arrive as an over-the-air update. The app downloads it on its own and shows "Υπάρχει νέα έκδοση" with a restart button.
 - **Changes to native code** (new native library, permissions, app icon) need a new app. A new APK is built with EAS Build, and the link to install it is in the summary of the "Deploy to phone" run on GitHub.
 
+### Try a change before it reaches the real app
+
+Add the label `test-build` to a pull request. The "Test build" workflow makes a separate app, **Mario TEST** (`com.altany.marioshelper.test`), and puts its install link in the run summary. It installs next to the real app, with its own data and its own reminders, so Mario's real reminders are not touched. Each run is one EAS build.
+
 One-time setup:
 
 1. On expo.dev: Account settings → Access tokens → create a token.
@@ -39,8 +43,7 @@ One-time setup:
 
 ## How it works (for developers)
 
-- Expo SDK 51 + expo-router. Notifications use [Notifee](https://github.com/invertase/notifee) (`@notifee/react-native`).
-  Notifee was archived in April 2026; its maintained fork [`react-native-notify-kit`](https://github.com/marcocrupi/react-native-notify-kit) has the same API but needs the New Architecture. To switch, change the import in `src/notify/driver.ts`.
+- Expo SDK 57 (React Native 0.86, New Architecture) + expo-router. Notifications use [`react-native-notify-kit`](https://github.com/marcocrupi/react-native-notify-kit), the maintained fork of [Notifee](https://github.com/invertase/notifee) (archived in April 2026), with the same API. It is imported only in `src/notify/driver.ts`.
 - Instead of repeating alarms, the app works out the concrete doses ("runs") for the next 7 days from the routines (`src/engine/runs.ts`), and schedules one exact alarm per dose. Every change goes through `act()` (`src/notify/commands.ts`), which saves the data and then syncs the alarms with the plan (`src/engine/plan.ts`, `src/notify/sync.ts`). The 7 days are topped up every time the app opens or a notification fires.
 - Notification buttons are handled in `src/notify/events.ts`. It is registered in `index.js` so it also runs when Android starts the app in the background.
 - All data is one JSON document in AsyncStorage (`src/store/store.ts`).
@@ -49,7 +52,7 @@ One-time setup:
 ```
 app/                 screens (expo-router)
 src/engine/          schedule logic, no React
-src/notify/          notifications (Notifee)
+src/notify/          notifications (notify-kit, the Notifee fork)
 src/store/           saving data
 src/model/           types, default data, migration from v2
 src/ui/              components, theme, sheets

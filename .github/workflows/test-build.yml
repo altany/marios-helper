@@ -1,0 +1,31 @@
+name: Test build
+
+# Makes the separate "Mario TEST" app from a pull request, to try a change on
+# the phone before it reaches the real app. Runs when the PR gets the
+# "test-build" label (or by hand). Each run is one EAS build.
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'test-build'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: ./scripts/build-apk.sh test "Mario TEST - $TITLE"
+        env:
+          TITLE: ${{ github.event.pull_request.title || github.ref_name }}
