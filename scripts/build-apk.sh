@@ -14,12 +14,22 @@ say() {
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "$*" >>"$GITHUB_STEP_SUMMARY"; fi
 }
 
+# With --json, eas prints only the finished build (also when it failed) on
+# stdout, so the link below is for this build and not another one running at
+# the same time. The progress goes to stderr and still shows in the log.
 set +e
-eas build --platform android --profile "$PROFILE" --message "$message" --non-interactive --wait
+out=$(eas build --platform android --profile "$PROFILE" --message "$message" --non-interactive --wait --json)
 status=$?
 set -e
 
-build=$(eas build:list --platform android --build-profile "$PROFILE" --limit 1 --json --non-interactive | jq '.[0]')
+build=$(jq '.[0] // empty' <<<"$out" 2>/dev/null || true)
+if [ -z "$build" ]; then
+  echo "::error::The build did not start (see the log above)."
+  say "### ❌ Η δημιουργία της εφαρμογής απέτυχε"
+  say "Δεν ξεκίνησε καθόλου. Οι λεπτομέρειες είναι στο log του GitHub."
+  exit 1
+fi
+
 id=$(jq -r .id <<<"$build")
 page="https://expo.dev/accounts/$(jq -r .app.ownerAccount.name <<<"$build")/projects/$(jq -r .app.slug <<<"$build")/builds/$id"
 
