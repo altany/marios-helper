@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { markStep, moveRun, resetRunTime, setRunSkipped, unmarkStep } from '../engine/actions';
 import { buildRun, RunView, StepView } from '../engine/runs';
+import { t } from '../i18n';
 import { atTime, formatDate, formatMinutes, hhmmToMinutes, MINUTE, minutesToHHMM, nearestAt, toHHMM } from '../lib/time';
 import { act, giveStep, skipStep, snoozeStepFor } from '../notify/commands';
 import { nextLine } from '../notify/content';
@@ -38,7 +39,7 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
     );
 
   const started = run.steps.some(st => st.markedAt != null);
-  const title = `${run.routineName || 'Δόση'} · ${toHHMM(run.startAt)}`;
+  const title = `${run.routineName || t('Δόση', 'Dose')} · ${toHHMM(run.startAt)}`;
 
   const close = () => {
     setMode({ kind: 'main' });
@@ -50,13 +51,16 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
     const save = async () => {
       const startAt = nearestAt(run.date, mode.value, run.plannedAt);
       await act(d => (startAt === run.plannedAt ? resetRunTime(d, run.id) : moveRun(d, run.id, startAt)));
-      toast(`Νέα ώρα: ${mode.value}`);
+      toast(t(`Νέα ώρα: ${mode.value}`, `New time: ${mode.value}`));
       setMode({ kind: 'main' });
     };
     return (
-      <Sheet visible onClose={close} title="Αλλαγή ώρας μόνο αυτή τη φορά">
+      <Sheet visible onClose={close} title={t('Αλλαγή ώρας μόνο αυτή τη φορά', 'Change the time just this once')}>
         <Text style={[s.hint, { color: c.textSoft }]}>
-          {formatDate(run.date)} · κανονική ώρα {run.time}. Οι άλλες μέρες δεν αλλάζουν.
+          {t(
+            `${formatDate(run.date)} · κανονική ώρα ${run.time}. Οι άλλες μέρες δεν αλλάζουν.`,
+            `${formatDate(run.date)} · usual time ${run.time}. Other days stay the same.`,
+          )}
         </Text>
         <View style={s.wrap}>
           {[-60, -30, -15, 15, 30, 60, 120].map(m => (
@@ -64,8 +68,8 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
           ))}
         </View>
         <TimePicker value={mode.value} onChange={value => setMode({ kind: 'time', value })} />
-        <Button label={`Αποθήκευση · ${mode.value}`} kind="primary" icon="checkmark" onPress={save} />
-        <Button label="Πίσω" kind="ghost" onPress={() => setMode({ kind: 'main' })} />
+        <Button label={t(`Αποθήκευση · ${mode.value}`, `Save · ${mode.value}`)} kind="primary" icon="checkmark" onPress={save} />
+        <Button label={t('Πίσω', 'Back')} kind="ghost" onPress={() => setMode({ kind: 'main' })} />
       </Sheet>
     );
   }
@@ -76,17 +80,20 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
       let at = atTime(run.date, mode.value);
       if (at > now + 12 * 60 * MINUTE) at -= 24 * 60 * MINUTE; // e.g. picked 23:50 just after midnight
       await act(d => markStep(d, run.id, mode.index, 'given', at));
-      toast(`${step.name}: δόθηκε ${mode.value}`);
+      toast(t(`${step.name}: δόθηκε ${mode.value}`, `${step.name}: given at ${mode.value}`));
       setMode({ kind: 'main' });
     };
     return (
-      <Sheet visible onClose={close} title={`Πότε δόθηκε το ${step.name};`}>
+      <Sheet visible onClose={close} title={t(`Πότε δόθηκε το ${step.name};`, `When was ${step.name} given?`)}>
         <Text style={[s.hint, { color: c.textSoft }]}>
-          Το επόμενο φάρμακο της σειράς υπολογίζεται από αυτή την ώρα.
+          {t(
+            'Το επόμενο φάρμακο της σειράς υπολογίζεται από αυτή την ώρα.',
+            'The next medicine in the chain is timed from this.',
+          )}
         </Text>
         <TimePicker value={mode.value} onChange={value => setMode({ ...mode, value })} />
-        <Button label={`Δόθηκε στις ${mode.value}`} kind="success" icon="paw" onPress={save} />
-        <Button label="Πίσω" kind="ghost" onPress={() => setMode({ kind: 'main' })} />
+        <Button label={t(`Δόθηκε στις ${mode.value}`, `Given at ${mode.value}`)} kind="success" icon="paw" onPress={save} />
+        <Button label={t('Πίσω', 'Back')} kind="ghost" onPress={() => setMode({ kind: 'main' })} />
       </Sheet>
     );
   }
@@ -94,8 +101,8 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
   if (mode.kind === 'snooze') {
     const step = run.steps[mode.index];
     return (
-      <Sheet visible onClose={close} title={`${step.name} αργότερα`}>
-        <Text style={[s.hint, { color: c.textSoft }]}>Θα ειδοποιηθείς ξανά σε:</Text>
+      <Sheet visible onClose={close} title={t(`${step.name} αργότερα`, `${step.name} later`)}>
+        <Text style={[s.hint, { color: c.textSoft }]}>{t('Θα ειδοποιηθείς ξανά σε:', 'Remind me again in:')}</Text>
         <View style={s.wrap}>
           {SNOOZE_OPTIONS.map(min => (
             <Chip
@@ -103,13 +110,13 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
               label={`${formatMinutes(min)} · ${toHHMM(now + min * MINUTE)}`}
               onPress={async () => {
                 await snoozeStepFor(run.id, mode.index, min);
-                toast(`Υπενθύμιση στις ${toHHMM(Date.now() + min * MINUTE)}`);
+                toast(t(`Υπενθύμιση στις ${toHHMM(Date.now() + min * MINUTE)}`, `Reminder at ${toHHMM(Date.now() + min * MINUTE)}`));
                 close();
               }}
             />
           ))}
         </View>
-        <Button label="Πίσω" kind="ghost" onPress={() => setMode({ kind: 'main' })} />
+        <Button label={t('Πίσω', 'Back')} kind="ghost" onPress={() => setMode({ kind: 'main' })} />
       </Sheet>
     );
   }
@@ -118,8 +125,13 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
     <Sheet visible onClose={close} title={title}>
       <Text style={[s.hint, { color: c.textSoft }]}>
         {formatDate(run.date)}
-        {run.moved ? ` · κανονικά στις ${run.time}` : ''}
-        {run.followed ? ` · μετράει από την προηγούμενη δόση (κανονικά ${run.time})` : ''}
+        {run.moved ? t(` · κανονικά στις ${run.time}`, ` · usually at ${run.time}`) : ''}
+        {run.followed
+          ? t(
+              ` · μετράει από την προηγούμενη δόση (κανονικά ${run.time})`,
+              ` · timed from the previous dose (usually ${run.time})`,
+            )
+          : ''}
       </Text>
 
       {run.steps.map(step => (
@@ -135,19 +147,19 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
                 </Text>
               )}
               <Button
-                label="Το έδωσα τώρα"
+                label={t('Το έδωσα τώρα', 'I gave it now')}
                 kind="success"
                 icon="paw"
                 onPress={async () => {
                   await giveStep(run.id, step.index);
-                  toast(`${step.name}: δόθηκε`);
+                  toast(t(`${step.name}: δόθηκε`, `${step.name}: given`));
                 }}
               />
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Button
                   small
                   style={{ flex: 1 }}
-                  label="Νωρίτερα"
+                  label={t('Νωρίτερα', 'Earlier')}
                   onPress={() =>
                     setMode({
                       kind: 'givenAt',
@@ -160,19 +172,23 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
                   <Button
                     small
                     style={{ flex: 1 }}
-                    label="Αργότερα"
+                    label={t('Αργότερα', 'Later')}
                     onPress={() => setMode({ kind: 'snooze', index: step.index })}
                   />
                 )}
                 <Button
                   small
                   style={{ flex: 1 }}
-                  label="Παράλειψη"
+                  label={t('Παράλειψη', 'Skip')}
                   onPress={() =>
-                    Alert.alert('Παράλειψη', `Να μη δοθεί το ${step.name} αυτή τη φορά;`, [
-                      { text: 'Άκυρο', style: 'cancel' },
-                      { text: 'Παράλειψη', style: 'destructive', onPress: () => skipStep(run.id, step.index) },
-                    ])
+                    Alert.alert(
+                      t('Παράλειψη', 'Skip'),
+                      t(`Να μη δοθεί το ${step.name} αυτή τη φορά;`, `Skip ${step.name} this time?`),
+                      [
+                        { text: t('Άκυρο', 'Cancel'), style: 'cancel' },
+                        { text: t('Παράλειψη', 'Skip'), style: 'destructive', onPress: () => skipStep(run.id, step.index) },
+                      ],
+                    )
                   }
                 />
               </View>
@@ -182,7 +198,7 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
             <Button
               small
               kind="ghost"
-              label="Αναίρεση"
+              label={t('Αναίρεση', 'Undo')}
               icon="arrow-undo-outline"
               style={{ alignSelf: 'flex-start', marginLeft: 36 }}
               onPress={() => act(d => unmarkStep(d, run.id, step.index))}
@@ -194,45 +210,49 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
 
       {!started && !run.skipped && run.status !== 'missed' && (
         <Button
-          label="Αλλαγή ώρας μόνο αυτή τη φορά"
+          label={t('Αλλαγή ώρας μόνο αυτή τη φορά', 'Change the time just this once')}
           icon="time-outline"
           onPress={() => setMode({ kind: 'time', value: toHHMM(run.startAt) })}
         />
       )}
       {run.moved && !started && (
         <Button
-          label={`Επαναφορά στις ${run.time}`}
+          label={t(`Επαναφορά στις ${run.time}`, `Back to ${run.time}`)}
           kind="ghost"
           icon="refresh"
           onPress={async () => {
             await act(d => resetRunTime(d, run.id));
-            toast(`Ξανά στις ${run.time}`);
+            toast(t(`Ξανά στις ${run.time}`, `Back at ${run.time}`));
           }}
         />
       )}
       {!started && !run.skipped && (
         <Button
-          label="Παράλειψη όλης της δόσης"
+          label={t('Παράλειψη όλης της δόσης', 'Skip the whole dose')}
           kind="danger"
           icon="close-circle-outline"
           onPress={() =>
-            Alert.alert('Παράλειψη', 'Να μη δοθεί καθόλου αυτή η δόση; Δε θα έρθει ειδοποίηση.', [
-              { text: 'Άκυρο', style: 'cancel' },
-              {
-                text: 'Παράλειψη',
-                style: 'destructive',
-                onPress: async () => {
-                  await act(d => setRunSkipped(d, run.id, true));
-                  close();
+            Alert.alert(
+              t('Παράλειψη', 'Skip'),
+              t('Να μη δοθεί καθόλου αυτή η δόση; Δε θα έρθει ειδοποίηση.', 'Skip this whole dose? No reminder will come.'),
+              [
+                { text: t('Άκυρο', 'Cancel'), style: 'cancel' },
+                {
+                  text: t('Παράλειψη', 'Skip'),
+                  style: 'destructive',
+                  onPress: async () => {
+                    await act(d => setRunSkipped(d, run.id, true));
+                    close();
+                  },
                 },
-              },
-            ])
+              ],
+            )
           }
         />
       )}
       {run.skipped && (
         <Button
-          label="Αναίρεση παράλειψης"
+          label={t('Αναίρεση παράλειψης', 'Undo skip')}
           icon="arrow-undo-outline"
           onPress={() => act(d => setRunSkipped(d, run.id, false))}
         />

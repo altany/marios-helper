@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { saveRoutine } from '../../src/engine/actions';
 import { listRuns } from '../../src/engine/runs';
+import { t } from '../../src/i18n';
 import {
   addDays,
   dateKey,
-  DAY_SHORT,
+  dayShort,
   formatDate,
   formatMinutes,
   hhmmToMinutes,
@@ -23,13 +24,13 @@ import { Colors, useColors } from '../../src/ui/theme';
 
 const daysLabel = (days: number[]) =>
   days.length === 0 || days.length === 7
-    ? 'Κάθε μέρα'
+    ? t('Κάθε μέρα', 'Every day')
     : [1, 2, 3, 4, 5, 6, 0]
         .filter(d => days.includes(d))
-        .map(d => DAY_SHORT[d])
+        .map(d => dayShort()[d])
         .join(', ');
 
-/** "Hylogel → 20′ → Lacrimmune" with coloured dots. */
+/** "Blinkdrops → 20′ → Tearshield" with coloured dots. */
 const Chain = ({ data, routine, c }: { data: AppData; routine: Routine; c: Colors }) => (
   <View style={st.chain}>
     {routine.steps.map((step, i) => {
@@ -63,7 +64,7 @@ export default function ScheduleScreen() {
   // A typical day: every time with the routines that run then.
   const slots = new Map<string, Routine[]>();
   for (const r of data.routines.filter(r => r.enabled && r.steps.length > 0)) {
-    for (const t of r.times) slots.set(t, [...(slots.get(t) ?? []), r]);
+    for (const time of r.times) slots.set(time, [...(slots.get(time) ?? []), r]);
   }
   const times = Array.from(slots.keys()).sort((a, b) => hhmmToMinutes(a) - hhmmToMinutes(b));
 
@@ -73,17 +74,20 @@ export default function ScheduleScreen() {
 
   return (
     <>
-      <Screen title="Πρόγραμμα" subtitle={`Μια συνηθισμένη μέρα του ${data.settings.petName}`}>
+      <Screen
+        title={t('Πρόγραμμα', 'Schedule')}
+        subtitle={t(`Μια συνηθισμένη μέρα του ${data.settings.petName}`, `A normal day for ${data.settings.petName}`)}
+      >
         <Card style={{ gap: 0, paddingVertical: 6 }}>
-          {times.length === 0 && <EmptyState dog="dog-side" text="Δεν υπάρχει πρόγραμμα ακόμα." />}
-          {times.map((t, i) => (
+          {times.length === 0 && <EmptyState dog="dog-side" text={t('Δεν υπάρχει πρόγραμμα ακόμα.', 'No schedule yet.')} />}
+          {times.map((time, i) => (
             <View
-              key={t}
+              key={time}
               style={[st.slot, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }]}
             >
-              <Text style={[st.slotTime, { color: c.text }]}>{t}</Text>
+              <Text style={[st.slotTime, { color: c.text }]}>{time}</Text>
               <View style={{ flex: 1, gap: 10 }}>
-                {slots.get(t)!.map(r => (
+                {slots.get(time)!.map(r => (
                   <Pressable
                     key={r.id}
                     onPress={() => router.push(`/routine/${r.id}`)}
@@ -102,16 +106,18 @@ export default function ScheduleScreen() {
           ))}
         </Card>
 
-        <SectionTitle>Ρουτίνες</SectionTitle>
+        <SectionTitle>{t('Ρουτίνες', 'Routines')}</SectionTitle>
         <Text style={[s.hint, { color: c.textSoft, paddingHorizontal: 4 }]}>
-          Μια ρουτίνα είναι φάρμακα που δίνονται το ένα μετά το άλλο, τις ίδιες ώρες. Το επόμενο έρχεται όσα λεπτά
-          ορίσεις μετά από τη στιγμή που πάτησες «Το έδωσα».
+          {t(
+            'Μια ρουτίνα είναι φάρμακα που δίνονται το ένα μετά το άλλο, τις ίδιες ώρες. Το επόμενο έρχεται όσα λεπτά ορίσεις μετά από τη στιγμή που πάτησες «Το έδωσα».',
+            'A routine is medicines given one after the other, at the same times. The next one comes as many minutes as you set after you tap "I gave it".',
+          )}
         </Text>
         {data.routines.map(r => (
           <Card key={r.id} onPress={() => router.push(`/routine/${r.id}`)} style={!r.enabled && { opacity: 0.55 }}>
             <View style={st.routineHead}>
               <Text style={[st.routineName, { color: c.text }]} numberOfLines={1}>
-                {r.name || 'Ρουτίνα'}
+                {r.name || t('Ρουτίνα', 'Routine')}
               </Text>
               <Switch
                 value={r.enabled}
@@ -121,9 +127,9 @@ export default function ScheduleScreen() {
               />
             </View>
             <View style={s.wrap}>
-              {r.times.map(t => (
-                <View key={t} style={[st.time, { backgroundColor: c.accentSoft }]}>
-                  <Text style={[st.timeText, { color: c.accentText }]}>{t}</Text>
+              {r.times.map(time => (
+                <View key={time} style={[st.time, { backgroundColor: c.accentSoft }]}>
+                  <Text style={[st.timeText, { color: c.accentText }]}>{time}</Text>
                 </View>
               ))}
               <Text style={[s.hint, { color: c.textSoft, alignSelf: 'center' }]}>{daysLabel(r.days)}</Text>
@@ -131,15 +137,26 @@ export default function ScheduleScreen() {
             <Chain data={data} routine={r} c={c} />
           </Card>
         ))}
-        <Button label="Νέα ρουτίνα" kind="primary" icon="add" onPress={() => router.push('/routine/new')} />
+        <Button
+          label={t('Νέα ρουτίνα', 'New routine')}
+          kind="primary"
+          icon="add"
+          onPress={() => router.push('/routine/new')}
+        />
 
-        <SectionTitle>Επόμενες ειδοποιήσεις</SectionTitle>
+        <SectionTitle>{t('Επόμενες ειδοποιήσεις', 'Next reminders')}</SectionTitle>
         <Text style={[s.hint, { color: c.textSoft, paddingHorizontal: 4 }]}>
-          Πάτα μια ειδοποίηση για να αλλάξεις την ώρα της μόνο εκείνη τη μέρα ή να την παραλείψεις.
+          {t(
+            'Πάτα μια ειδοποίηση για να αλλάξεις την ώρα της μόνο εκείνη τη μέρα ή να την παραλείψεις.',
+            'Tap a reminder to change its time for that day only, or to skip it.',
+          )}
         </Text>
         {upcoming.length === 0 && (
           <Card>
-            <EmptyState icon="notifications-off-outline" text="Καμία ειδοποίηση τις επόμενες μέρες." />
+            <EmptyState
+              icon="notifications-off-outline"
+              text={t('Καμία ειδοποίηση τις επόμενες μέρες.', 'No reminders in the next few days.')}
+            />
           </Card>
         )}
         {Array.from(new Set(upcoming.map(r => r.date))).map(day => (
@@ -182,11 +199,11 @@ export default function ScheduleScreen() {
                     </View>
                     <Text style={[s.hint, { color: run.skipped ? c.danger : run.moved || run.followed ? c.warn : c.textMuted }]}>
                       {run.skipped
-                        ? 'Παραλείπεται'
+                        ? t('Παραλείπεται', 'Skipping')
                         : run.moved
-                          ? `Άλλαξε από ${run.time}`
+                          ? t(`Άλλαξε από ${run.time}`, `Moved from ${run.time}`)
                           : run.followed
-                            ? `Από την προηγούμενη δόση · κανονικά ${run.time}`
+                            ? t(`Από την προηγούμενη δόση · κανονικά ${run.time}`, `From the previous dose · usually ${run.time}`)
                             : run.routineName}
                     </Text>
                   </View>

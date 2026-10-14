@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { setLanguage } from '../i18n';
 import { defaultData } from '../model/defaults';
 import { migrateV2, normalize, V2_SETTINGS_KEY } from '../model/migrate';
 import { AppData } from '../model/types';
@@ -37,6 +38,7 @@ export const getData = (): Promise<AppData> => {
   if (!loading) {
     loading = loadFromDisk().then(d => {
       cache = d;
+      setLanguage(d.settings.language);
       return d;
     });
     loading.catch(() => (loading = null));
@@ -44,7 +46,10 @@ export const getData = (): Promise<AppData> => {
   return loading;
 };
 
-const publish = (data: AppData) => listeners.forEach(l => l(data));
+const publish = (data: AppData) => {
+  setLanguage(data.settings.language);
+  listeners.forEach(l => l(data));
+};
 
 /** Applies `recipe` to a copy of the data, saves it and tells every screen. */
 export const update = (recipe: (draft: AppData) => void): Promise<AppData> => {

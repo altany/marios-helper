@@ -1,25 +1,44 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { t } from '../i18n';
 import { caps } from '../lib/text';
 import { dateKey, hhmmToMinutes, minutesToHHMM, pad } from '../lib/time';
 import { radius, useColors } from './theme';
 
-const MONTHS = [
-  'Ιανουάριος',
-  'Φεβρουάριος',
-  'Μάρτιος',
-  'Απρίλιος',
-  'Μάιος',
-  'Ιούνιος',
-  'Ιούλιος',
-  'Αύγουστος',
-  'Σεπτέμβριος',
-  'Οκτώβριος',
-  'Νοέμβριος',
-  'Δεκέμβριος',
-];
-const WEEK_HEAD = ['Δ', 'Τ', 'Τ', 'Π', 'Π', 'Σ', 'Κ'];
+const months = () =>
+  t(
+    [
+      'Ιανουάριος',
+      'Φεβρουάριος',
+      'Μάρτιος',
+      'Απρίλιος',
+      'Μάιος',
+      'Ιούνιος',
+      'Ιούλιος',
+      'Αύγουστος',
+      'Σεπτέμβριος',
+      'Οκτώβριος',
+      'Νοέμβριος',
+      'Δεκέμβριος',
+    ],
+    [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ],
+  );
+/** Monday first. */
+const weekHead = () => t(['Δ', 'Τ', 'Τ', 'Π', 'Π', 'Σ', 'Κ'], ['M', 'T', 'W', 'T', 'F', 'S', 'S']);
 
 const Cell = ({
   label,
@@ -60,13 +79,13 @@ export const TimePicker = ({ value, onChange }: { value: string; onChange: (hhmm
           <Ionicons name="add" size={22} color={c.text} />
         </Pressable>
       </View>
-      <Text style={[p.caption, { color: c.textSoft }]}>{caps('Ώρα')}</Text>
+      <Text style={[p.caption, { color: c.textSoft }]}>{caps(t('Ώρα', 'Hour'))}</Text>
       <View style={p.grid}>
         {Array.from({ length: 24 }, (_, hour) => (
           <Cell key={hour} label={pad(hour)} selected={hour === h} onPress={() => set(hour, m)} />
         ))}
       </View>
-      <Text style={[p.caption, { color: c.textSoft }]}>{caps('Λεπτά')}</Text>
+      <Text style={[p.caption, { color: c.textSoft }]}>{caps(t('Λεπτά', 'Minutes'))}</Text>
       <View style={p.grid}>
         {Array.from({ length: 12 }, (_, i) => i * 5).map(minute => (
           <Cell key={minute} label={`:${pad(minute)}`} selected={minute === m} onPress={() => set(h, minute)} />
@@ -105,14 +124,14 @@ export const DatePicker = ({ value, onChange }: { value?: string; onChange: (dat
           <Ionicons name="chevron-back" size={20} color={c.text} />
         </Pressable>
         <Text style={[p.month, { color: c.text }]}>
-          {MONTHS[month.m]} {month.y}
+          {months()[month.m]} {month.y}
         </Text>
         <Pressable onPress={() => move(1)} hitSlop={10} style={[p.nudge, { backgroundColor: c.input }]}>
           <Ionicons name="chevron-forward" size={20} color={c.text} />
         </Pressable>
       </View>
       <View style={p.week}>
-        {WEEK_HEAD.map((d, i) => (
+        {weekHead().map((d, i) => (
           <Text key={i} style={[p.weekDay, { color: c.textMuted }]}>
             {d}
           </Text>

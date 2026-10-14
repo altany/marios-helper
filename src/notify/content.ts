@@ -1,4 +1,5 @@
 import { RunView, StepView } from '../engine/runs';
+import { t } from '../i18n';
 import { addDays, dateKey, formatDate, formatMinutes, formatMinutesWords, MINUTE, toHHMM } from '../lib/time';
 import { AppData } from '../model/types';
 import { ACCENT } from '../ui/theme';
@@ -19,7 +20,9 @@ const esc = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').
 export const nextLine = (run: RunView, step: StepView, format = formatMinutes) => {
   const next = run.steps[step.index + 1];
   if (!next) return '';
-  return next.waitMin > 0 ? `Μετά: ${next.name} σε ${format(next.waitMin)}` : `Μετά: ${next.name} αμέσως`;
+  return next.waitMin > 0
+    ? t(`Μετά: ${next.name} σε ${format(next.waitMin)}`, `Next: ${next.name} in ${format(next.waitMin)}`)
+    : t(`Μετά: ${next.name} αμέσως`, `Next: ${next.name} straight away`);
 };
 
 // Notification texts avoid symbols like ✓ or ′: some smartwatches can't show them.
@@ -45,18 +48,20 @@ export const doseNotification = (
   const after = nextLine(run, step, formatMinutesWords);
   const name = esc(step.name);
   const lines = [
-    late ? `Ήταν για τις ${toHHMM(step.dueAt)}.` : '',
+    late ? t(`Ήταν για τις ${toHHMM(step.dueAt)}.`, `It was due at ${toHHMM(step.dueAt)}.`) : '',
     med?.dose ? `<b>${esc(med.dose)}</b>` : '',
     med?.notes ? esc(med.notes) : '',
     after ? `<i>${esc(after)}</i>` : '',
   ].filter(Boolean);
-  const text = lines.join('<br>') || 'Ώρα για το φάρμακο';
+  const text = lines.join('<br>') || t('Ώρα για το φάρμακο', 'Time for the medicine');
   const subtitle = esc([run.routineName, toHHMM(step.dueAt)].filter(Boolean).join(' · '));
   const quiet = !!opts.quiet;
 
   return {
     id: step.notifId,
-    title: late ? `Ξέχασες το ${name};` : `Ώρα για ${name}, ${esc(settings.petName)}!`,
+    title: late
+      ? t(`Ξέχασες το ${name};`, `Did you forget ${name}?`)
+      : t(`Ώρα για ${name}, ${esc(settings.petName)}!`, `Time for ${name}, ${esc(settings.petName)}!`),
     body: text,
     subtitle,
     data: { runId: run.id, index: String(step.index), kind: 'dose' },
@@ -79,8 +84,14 @@ export const doseNotification = (
       style: { type: AndroidStyle.BIGTEXT, text },
       pressAction: { id: 'default', launchActivity: 'default' },
       actions: [
-        { title: 'Το έδωσα', pressAction: { id: ACTION_GIVE } },
-        { title: `Αργότερα ${formatMinutesWords(settings.snoozeMin)}`, pressAction: { id: ACTION_SNOOZE } },
+        { title: t('Το έδωσα', 'I gave it'), pressAction: { id: ACTION_GIVE } },
+        {
+          title: t(
+            `Αργότερα ${formatMinutesWords(settings.snoozeMin)}`,
+            `Later ${formatMinutesWords(settings.snoozeMin)}`,
+          ),
+          pressAction: { id: ACTION_SNOOZE },
+        },
       ],
     },
     ios: {
@@ -101,8 +112,11 @@ export const countdownNotification = (
   now: number,
 ): Notification & { id: string; data: Record<string, string> } => ({
   id: `${step.notifId}~wait`,
-  title: `Μπράβο! Το ${esc(after.name)} δόθηκε στις ${toHHMM(after.markedAt ?? now)}`,
-  body: `Επόμενο: ${esc(step.name)} στις ${toHHMM(step.dueAt)}`,
+  title: t(
+    `Μπράβο! Το ${esc(after.name)} δόθηκε στις ${toHHMM(after.markedAt ?? now)}`,
+    `Well done! ${esc(after.name)} given at ${toHHMM(after.markedAt ?? now)}`,
+  ),
+  body: t(`Επόμενο: ${esc(step.name)} στις ${toHHMM(step.dueAt)}`, `Next: ${esc(step.name)} at ${toHHMM(step.dueAt)}`),
   data: { runId: run.id, index: String(step.index), kind: 'wait', sig: String(step.dueAt) },
   android: {
     channelId: CH_WAIT,
@@ -118,7 +132,7 @@ export const countdownNotification = (
     timestamp: step.dueAt,
     timeoutAfter: Math.max(1000, step.dueAt - now),
     pressAction: { id: 'default', launchActivity: 'default' },
-    actions: [{ title: 'Το έδωσα ήδη', pressAction: { id: ACTION_GIVE } }],
+    actions: [{ title: t('Το έδωσα ήδη', 'Already gave it'), pressAction: { id: ACTION_GIVE } }],
   },
 });
 
@@ -131,14 +145,24 @@ export const bravoNotification = (
   now: number,
 ): Notification & { id: string } => {
   const day = next && dateKey(next.step.dueAt);
-  const when = day === addDays(dateKey(now), 1) ? 'αύριο' : day === dateKey(now) ? 'σήμερα' : day && formatDate(day);
+  const when =
+    day === addDays(dateKey(now), 1)
+      ? t('αύριο', 'tomorrow')
+      : day === dateKey(now)
+        ? t('σήμερα', 'today')
+        : day && formatDate(day);
   const lines = [
-    'Πήρε όλα τα φάρμακα της μέρας.',
-    next ? `Επόμενο: ${when} στις ${toHHMM(next.step.dueAt)}, ${esc(next.step.name)}` : '',
+    t('Πήρε όλα τα φάρμακα της μέρας.', 'All of today\'s medicines are given.'),
+    next
+      ? t(
+          `Επόμενο: ${when} στις ${toHHMM(next.step.dueAt)}, ${esc(next.step.name)}`,
+          `Next: ${when} at ${toHHMM(next.step.dueAt)}, ${esc(next.step.name)}`,
+        )
+      : '',
   ].filter(Boolean);
   return {
     id: BRAVO_ID,
-    title: `Μπράβο ${esc(data.settings.petName)}!`,
+    title: t(`Μπράβο ${esc(data.settings.petName)}!`, `Well done, ${esc(data.settings.petName)}!`),
     body: lines.join('<br>'),
     android: {
       channelId: CH_DONE,

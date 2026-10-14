@@ -192,7 +192,7 @@ describe('runs', () => {
         name: 'Κάθε 8 ώρες',
         times: ['07:00', '15:00', '23:00'],
         days: [],
-        steps: [{ id: 's8', medId: 'depon', waitMin: 0 }],
+        steps: [{ id: 's8', medId: 'pawmol', waitMin: 0 }],
         enabled: true,
         createdAt: t('08:00', '2026-10-11'),
         fromGiven: true,
@@ -274,11 +274,11 @@ describe('runs', () => {
 
   it('leaves out medicines whose treatment ended', () => {
     const data = setup();
-    data.meds.find(m => m.id === 'depon')!.endDate = '2026-10-11';
+    data.meds.find(m => m.id === 'pawmol')!.endDate = '2026-10-11';
     const runs = runsForDay(data, DAY, t('08:00'));
     expect(runs.some(r => r.routineId === 'painkiller')).toBe(false);
-    data.meds.find(m => m.id === 'lacrimmune')!.endDate = '2026-10-11';
-    expect(buildRun(data, EYES_AM, t('08:00'))!.steps.map(s => s.name)).toEqual(['Hylogel']);
+    data.meds.find(m => m.id === 'tearshield')!.endDate = '2026-10-11';
+    expect(buildRun(data, EYES_AM, t('08:00'))!.steps.map(s => s.name)).toEqual(['Blinkdrops']);
   });
 
   it('keeps a started run as it was when the routine is edited', () => {
@@ -301,10 +301,10 @@ describe('runs', () => {
 
   it('finds what is due now and what comes next', () => {
     const data = setup();
-    expect(dueSteps(data, t('09:01')).map(d => d.step.name)).toEqual(['Hylogel', 'Depon']);
+    expect(dueSteps(data, t('09:01')).map(d => d.step.name)).toEqual(['Blinkdrops', 'Pawmol']);
     markStep(data, EYES_AM, 0, 'given', t('09:02'));
     const next = nextUpcoming(data, t('09:03'))!;
-    expect(next.step.name).toBe('Lacrimmune');
+    expect(next.step.name).toBe('Tearshield');
     expect(next.step.dueAt).toBe(t('09:22'));
   });
 
@@ -329,12 +329,12 @@ describe('notification plan', () => {
     const plan = planNotifications(data, t('08:00'));
     const today = plan.alerts.filter(a => a.at < t('23:59'));
     expect(today.map(a => `${a.step.name}@${new Date(a.at).getHours()}`)).toEqual([
-      'Hylogel@9',
-      'Depon@9',
-      'Hylogel@15',
-      'Depon@15',
-      'Hylogel@21',
-      'Depon@21',
+      'Blinkdrops@9',
+      'Pawmol@9',
+      'Blinkdrops@15',
+      'Pawmol@15',
+      'Blinkdrops@21',
+      'Pawmol@21',
     ]);
     expect(plan.due).toEqual([]);
     // About a week ahead is covered.
@@ -405,30 +405,30 @@ describe('notification plan', () => {
 describe('migration from the old app', () => {
   const OLD = [
     {
-      id: 'hylogel',
+      id: 'blinkdrops',
       groupTitle: 'Μάτια',
-      name: 'Hylogel',
-      body: 'Σταγόνες Hylogel - 1 σε κάθε μάτι',
+      name: 'Blinkdrops',
+      body: 'Σταγόνες Blinkdrops - 1 σε κάθε μάτι',
       times: [9, 15, 21],
       enabled: true,
       chainAtHours: [9, 21],
-      chain: [{ id: 'lacrimmune', name: 'Lacrimmune', body: 'Αλοιφή Lacrimmune', delayMinutes: 20 }],
+      chain: [{ id: 'tearshield', name: 'Tearshield', body: 'Αλοιφή Tearshield', delayMinutes: 20 }],
     },
-    { id: 'depon', groupTitle: 'Παυσίπονο', name: 'Depon', body: 'Depon - 1/4', times: [9, 15, 21], enabled: true },
+    { id: 'pawmol', groupTitle: 'Παυσίπονο', name: 'Pawmol', body: 'Pawmol - 1/4', times: [9, 15, 21], enabled: true },
   ];
 
   it('splits chains by hour into routines', () => {
     const data = migrateV2(OLD, t('08:00'));
-    expect(data.meds.map(m => m.name)).toEqual(['Hylogel', 'Lacrimmune', 'Depon']);
+    expect(data.meds.map(m => m.name)).toEqual(['Blinkdrops', 'Tearshield', 'Pawmol']);
     const summary = data.routines.map(r => ({
       name: r.name,
       times: r.times,
       steps: r.steps.map(s => `${data.meds.find(m => m.id === s.medId)!.name}+${s.waitMin}`),
     }));
     expect(summary).toEqual([
-      { name: 'Μάτια', times: ['09:00', '21:00'], steps: ['Hylogel+0', 'Lacrimmune+20'] },
-      { name: 'Μάτια (Hylogel)', times: ['15:00'], steps: ['Hylogel+0'] },
-      { name: 'Παυσίπονο', times: ['09:00', '15:00', '21:00'], steps: ['Depon+0'] },
+      { name: 'Μάτια', times: ['09:00', '21:00'], steps: ['Blinkdrops+0', 'Tearshield+20'] },
+      { name: 'Μάτια (Blinkdrops)', times: ['15:00'], steps: ['Blinkdrops+0'] },
+      { name: 'Παυσίπονο', times: ['09:00', '15:00', '21:00'], steps: ['Pawmol+0'] },
     ]);
   });
 
