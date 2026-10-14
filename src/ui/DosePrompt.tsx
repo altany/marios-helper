@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BackHandler, Image, Modal, StyleSheet, Text, View } from 'react-native';
 import { buildRun, dueSteps } from '../engine/runs';
+import { t } from '../i18n';
 import { caps } from '../lib/text';
 import { formatMinutes, MINUTE, toHHMM } from '../lib/time';
 import { giveStep, skipStep, snoozeStepFor } from '../notify/commands';
@@ -64,14 +65,17 @@ export const DosePrompt = () => {
             />
             <View style={{ flex: 1 }}>
               <Text style={[st.kicker, { color: c.accentText }]}>
-                {caps(`${data!.settings.petName} · ${run.routineName || 'Φάρμακο'}`)}
+                {caps(`${data!.settings.petName} · ${run.routineName || t('Φάρμακο', 'Medicine')}`)}
               </Text>
               <Text style={[s.hint, { color: c.textSoft }]}>
                 {step.status === 'upcoming'
-                  ? `Προγραμματισμένο για ${toHHMM(step.dueAt)}`
+                  ? t(`Προγραμματισμένο για ${toHHMM(step.dueAt)}`, `Planned for ${toHHMM(step.dueAt)}`)
                   : late >= 2
-                    ? `Από τις ${toHHMM(step.dueAt)} · πριν ${formatMinutes(late)}`
-                    : `Ώρα ${toHHMM(step.dueAt)}`}
+                    ? t(
+                        `Από τις ${toHHMM(step.dueAt)} · πριν ${formatMinutes(late)}`,
+                        `Since ${toHHMM(step.dueAt)} · ${formatMinutes(late)} ago`,
+                      )
+                    : t(`Ώρα ${toHHMM(step.dueAt)}`, `Due at ${toHHMM(step.dueAt)}`)}
               </Text>
             </View>
           </View>
@@ -91,12 +95,12 @@ export const DosePrompt = () => {
           )}
 
           <Button
-            label="Το έδωσα"
+            label={t('Το έδωσα', 'I gave it')}
             kind="success"
             icon="paw"
             onPress={async () => {
               await giveStep(run.id, step.index);
-              await done(`${step.name}: δόθηκε`);
+              await done(t(`${step.name}: δόθηκε`, `${step.name}: given`));
             }}
           />
 
@@ -108,25 +112,30 @@ export const DosePrompt = () => {
                   label={formatMinutes(min)}
                   onPress={async () => {
                     await snoozeStepFor(run.id, step.index, min);
-                    await done(`Υπενθύμιση στις ${toHHMM(Date.now() + min * MINUTE)}`);
+                    await done(
+                      t(
+                        `Υπενθύμιση στις ${toHHMM(Date.now() + min * MINUTE)}`,
+                        `Reminder at ${toHHMM(Date.now() + min * MINUTE)}`,
+                      ),
+                    );
                   }}
                 />
               ))}
             </View>
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button style={{ flex: 1 }} label="Αργότερα" onPress={() => setSnoozeOpen(true)} />
+              <Button style={{ flex: 1 }} label={t('Αργότερα', 'Later')} onPress={() => setSnoozeOpen(true)} />
               <Button
                 style={{ flex: 1 }}
-                label="Παράλειψη"
+                label={t('Παράλειψη', 'Skip')}
                 onPress={async () => {
                   await skipStep(run.id, step.index);
-                  await done(`${step.name}: παράλειψη`);
+                  await done(t(`${step.name}: παράλειψη`, `${step.name}: skipped`));
                 }}
               />
             </View>
           )}
-          <Button label="Κλείσιμο" kind="ghost" onPress={() => setTarget(null)} />
+          <Button label={t('Κλείσιμο', 'Close')} kind="ghost" onPress={() => setTarget(null)} />
         </View>
       </View>
     </Modal>

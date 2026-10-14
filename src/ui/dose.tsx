@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RunView, StepView } from '../engine/runs';
+import { t } from '../i18n';
 import { caps } from '../lib/text';
 import { formatFromNow, formatMinutes, MINUTE, toHHMM } from '../lib/time';
 import { IconName, MedIcon } from './components';
 import { Colors, radius, useColors } from './theme';
 
-/** Choices for "Αργότερα" (5 minutes to 2 hours). */
+/** Choices for "Αργότερα" (later): 5 minutes to 2 hours. */
 export const SNOOZE_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 
 export const statusInfo = (
@@ -19,28 +20,33 @@ export const statusInfo = (
   const prev = run.steps[step.index - 1];
   switch (step.status) {
     case 'given':
-      return { icon: 'paw', color: c.success, text: `Δόθηκε ${toHHMM(step.markedAt!)}` };
+      return { icon: 'paw', color: c.success, text: t(`Δόθηκε ${toHHMM(step.markedAt!)}`, `Given ${toHHMM(step.markedAt!)}`) };
     case 'skipped':
       return {
         icon: 'remove-circle-outline',
         color: c.textMuted,
-        text: step.markedAt ? `Παραλείφθηκε ${toHHMM(step.markedAt)}` : 'Παραλείπεται',
+        text: step.markedAt
+          ? t(`Παραλείφθηκε ${toHHMM(step.markedAt)}`, `Skipped ${toHHMM(step.markedAt)}`)
+          : t('Παραλείπεται', 'Skipping'),
       };
     case 'missed':
-      return { icon: 'alert-circle-outline', color: c.danger, text: 'Δεν καταγράφηκε' };
+      return { icon: 'alert-circle-outline', color: c.danger, text: t('Δεν καταγράφηκε', 'Not recorded') };
     case 'due': {
       const late = Math.round((now - step.dueAt) / MINUTE);
       return {
         icon: 'notifications',
         color: c.warn,
-        text: late >= 2 ? `Τώρα · καθυστέρηση ${formatMinutes(late)}` : 'Τώρα',
+        text: late >= 2 ? t(`Τώρα · καθυστέρηση ${formatMinutes(late)}`, `Now · ${formatMinutes(late)} late`) : t('Τώρα', 'Now'),
       };
     }
     case 'waiting':
       return {
         icon: 'hourglass-outline',
         color: c.textMuted,
-        text: `${formatMinutes(step.waitMin)} μετά το ${prev?.name ?? 'προηγούμενο'}`,
+        text: t(
+          `${formatMinutes(step.waitMin)} μετά το ${prev?.name ?? 'προηγούμενο'}`,
+          `${formatMinutes(step.waitMin)} after ${prev?.name ?? 'the previous one'}`,
+        ),
       };
     case 'upcoming': {
       const soon = step.dueAt - now < 3 * 60 * MINUTE;
@@ -48,7 +54,7 @@ export const statusInfo = (
       return {
         icon: step.snoozed ? 'alarm-outline' : 'time-outline',
         color: step.snoozed ? c.warn : c.textSoft,
-        text: step.snoozed ? `Αργότερα: ${when}` : when,
+        text: step.snoozed ? t(`Αργότερα: ${when}`, `Later: ${when}`) : when,
       };
     }
   }
@@ -87,15 +93,15 @@ export const StepLine = ({ run, step, now }: { run: RunView; step: StepView; now
 const runBadge = (run: RunView, c: Colors) => {
   switch (run.status) {
     case 'done':
-      return { text: 'Έγινε', color: c.success, bg: c.successSoft };
+      return { text: t('Έγινε', 'Done'), color: c.success, bg: c.successSoft };
     case 'active':
       return run.steps.some(st => st.status === 'due')
-        ? { text: 'Τώρα', color: c.warn, bg: c.warnSoft }
-        : { text: 'Σε εξέλιξη', color: c.accentText, bg: c.accentSoft };
+        ? { text: t('Τώρα', 'Now'), color: c.warn, bg: c.warnSoft }
+        : { text: t('Σε εξέλιξη', 'In progress'), color: c.accentText, bg: c.accentSoft };
     case 'missed':
-      return { text: 'Χάθηκε', color: c.danger, bg: c.dangerSoft };
+      return { text: t('Χάθηκε', 'Missed'), color: c.danger, bg: c.dangerSoft };
     case 'skipped':
-      return { text: 'Παράλειψη', color: c.textSoft, bg: c.input };
+      return { text: t('Παράλειψη', 'Skipped'), color: c.textSoft, bg: c.input };
     default:
       return null;
   }
@@ -124,7 +130,13 @@ export const RunCard = ({ run, now, onPress }: { run: RunView; now: number; onPr
         <View style={d.runHead}>
           <Text style={[d.runName, { color: c.textSoft }]} numberOfLines={1}>
             {caps(
-              `${run.routineName || 'Ρουτίνα'}${run.moved ? ' · άλλαξε ώρα' : run.followed ? ' · από την προηγούμενη' : ''}`,
+              `${run.routineName || t('Ρουτίνα', 'Routine')}${
+                run.moved
+                  ? t(' · άλλαξε ώρα', ' · moved')
+                  : run.followed
+                    ? t(' · από την προηγούμενη', ' · from the previous dose')
+                    : ''
+              }`,
             )}
           </Text>
           {badge && (

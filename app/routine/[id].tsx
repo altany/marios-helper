@@ -3,8 +3,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { deleteRoutine, saveMed, saveRoutine } from '../../src/engine/actions';
+import { t } from '../../src/i18n';
 import { newId } from '../../src/lib/id';
-import { DAY_SHORT, everyHours, formatMinutes, sortTimes } from '../../src/lib/time';
+import { dayShort, everyHours, formatMinutes, sortTimes } from '../../src/lib/time';
 import { MED_COLORS } from '../../src/model/defaults';
 import { Medication, Routine } from '../../src/model/types';
 import { act } from '../../src/notify/commands';
@@ -68,8 +69,10 @@ export default function RoutineEditor() {
   const medOf = (medId: string) => data.meds.find(m => m.id === medId);
 
   const save = async () => {
-    if (draft.steps.length === 0) return Alert.alert('Λείπει φάρμακο', 'Πρόσθεσε τουλάχιστον ένα φάρμακο.');
-    if (draft.times.length === 0) return Alert.alert('Λείπει ώρα', 'Πρόσθεσε τουλάχιστον μία ώρα.');
+    if (draft.steps.length === 0)
+      return Alert.alert(t('Λείπει φάρμακο', 'No medicine'), t('Πρόσθεσε τουλάχιστον ένα φάρμακο.', 'Add at least one medicine.'));
+    if (draft.times.length === 0)
+      return Alert.alert(t('Λείπει ώρα', 'No time'), t('Πρόσθεσε τουλάχιστον μία ώρα.', 'Add at least one time.'));
     await act(d =>
       saveRoutine(d, {
         ...draft,
@@ -78,22 +81,29 @@ export default function RoutineEditor() {
         fromGiven: draft.times.length > 1 && !!draft.fromGiven,
       }),
     );
-    toast('Αποθηκεύτηκε');
+    toast(t('Αποθηκεύτηκε', 'Saved'));
     router.back();
   };
 
   const remove = () =>
-    Alert.alert('Διαγραφή', `Να διαγραφεί η ρουτίνα «${draft.name || 'Ρουτίνα'}»; Το ιστορικό μένει.`, [
-      { text: 'Άκυρο', style: 'cancel' },
-      {
-        text: 'Διαγραφή',
-        style: 'destructive',
-        onPress: async () => {
-          await act(d => deleteRoutine(d, draft.id));
-          router.back();
+    Alert.alert(
+      t('Διαγραφή', 'Delete'),
+      t(
+        `Να διαγραφεί η ρουτίνα «${draft.name || 'Ρουτίνα'}»; Το ιστορικό μένει.`,
+        `Delete the routine "${draft.name || 'Routine'}"? The history stays.`,
+      ),
+      [
+        { text: t('Άκυρο', 'Cancel'), style: 'cancel' },
+        {
+          text: t('Διαγραφή', 'Delete'),
+          style: 'destructive',
+          onPress: async () => {
+            await act(d => deleteRoutine(d, draft.id));
+            router.back();
+          },
         },
-      },
-    ]);
+      ],
+    );
 
   const pickMed = (medId: string) => {
     if (!medSheet) return;
@@ -129,12 +139,14 @@ export default function RoutineEditor() {
 
   const summary =
     draft.steps.length > 0 && draft.times.length > 0
-      ? `Στις ${sortTimes(draft.times).join(', ')}: ` +
+      ? t(`Στις ${sortTimes(draft.times).join(', ')}: `, `At ${sortTimes(draft.times).join(', ')}: `) +
         draft.steps
           .map((st, i) =>
             i === 0
               ? medOf(st.medId)?.name
-              : `${st.waitMin > 0 ? `${formatMinutes(st.waitMin)} μετά` : 'αμέσως μετά'} ${medOf(st.medId)?.name}`,
+              : st.waitMin > 0
+                ? t(`${formatMinutes(st.waitMin)} μετά ${medOf(st.medId)?.name}`, `${medOf(st.medId)?.name} ${formatMinutes(st.waitMin)} later`)
+                : t(`αμέσως μετά ${medOf(st.medId)?.name}`, `${medOf(st.medId)?.name} straight after`),
           )
           .join(', ') +
         '.'
@@ -142,44 +154,44 @@ export default function RoutineEditor() {
 
   return (
     <Screen
-      title={isNew ? 'Νέα ρουτίνα' : 'Ρουτίνα'}
-      right={<IconButton icon="close" label="Κλείσιμο" onPress={() => router.back()} />}
+      title={isNew ? t('Νέα ρουτίνα', 'New routine') : t('Ρουτίνα', 'Routine')}
+      right={<IconButton icon="close" label={t('Κλείσιμο', 'Close')} onPress={() => router.back()} />}
     >
       <Card style={{ gap: 14 }}>
         <Field
-          label="Όνομα"
+          label={t('Όνομα', 'Name')}
           value={draft.name}
           onChangeText={name => patch({ name })}
-          placeholder="π.χ. Μάτια πρωί-βράδυ"
+          placeholder={t('π.χ. Μάτια πρωί-βράδυ', 'e.g. Eyes morning and evening')}
         />
-        <SwitchRow label="Ενεργή" value={draft.enabled} onChange={enabled => patch({ enabled })} />
+        <SwitchRow label={t('Ενεργή', 'On')} value={draft.enabled} onChange={enabled => patch({ enabled })} />
       </Card>
 
-      <SectionTitle>Ώρες</SectionTitle>
+      <SectionTitle>{t('Ώρες', 'Times')}</SectionTitle>
       <Card>
         <View style={s.wrap}>
-          {sortTimes(draft.times).map(t => (
+          {sortTimes(draft.times).map(time => (
             <Chip
-              key={t}
-              label={t}
+              key={time}
+              label={time}
               selected
-              onPress={() => setTimeSheet({ index: draft.times.indexOf(t), value: t })}
-              onRemove={() => patch({ times: draft.times.filter(x => x !== t) })}
+              onPress={() => setTimeSheet({ index: draft.times.indexOf(time), value: time })}
+              onRemove={() => patch({ times: draft.times.filter(x => x !== time) })}
             />
           ))}
-          <Chip label="+ Ώρα" onPress={() => setTimeSheet({ index: null, value: '09:00' })} />
+          <Chip label={t('+ Ώρα', '+ Time')} onPress={() => setTimeSheet({ index: null, value: '09:00' })} />
           <Chip
-            label="Κάθε … ώρες"
+            label={t('Κάθε … ώρες', 'Every … hours')}
             onPress={() => setEverySheet({ first: sortTimes(draft.times)[0] ?? '08:00', hours: 8 })}
           />
         </View>
-        <Text style={[s.label, { color: c.textSoft, marginTop: 6 }]}>Μέρες</Text>
+        <Text style={[s.label, { color: c.textSoft, marginTop: 6 }]}>{t('Μέρες', 'Days')}</Text>
         <View style={s.wrap}>
-          <Chip label="Κάθε μέρα" selected={draft.days.length === 0} onPress={() => patch({ days: [] })} />
+          <Chip label={t('Κάθε μέρα', 'Every day')} selected={draft.days.length === 0} onPress={() => patch({ days: [] })} />
           {WEEK.map(d => (
             <Chip
               key={d}
-              label={DAY_SHORT[d]}
+              label={dayShort()[d]}
               selected={draft.days.includes(d)}
               onPress={() => {
                 const days = draft.days.includes(d) ? draft.days.filter(x => x !== d) : [...draft.days, d];
@@ -190,15 +202,18 @@ export default function RoutineEditor() {
         </View>
         {draft.times.length > 1 && (
           <SwitchRow
-            label="Μετράει από την προηγούμενη δόση"
-            hint="Π.χ. 07:00 και 15:00: αν δώσεις την πρώτη στις 08:20, η επόμενη έρχεται 16:20. Η πρώτη δόση κάθε μέρας μένει στην ώρα της."
+            label={t('Μετράει από την προηγούμενη δόση', 'Timed from the previous dose')}
+            hint={t(
+              'Π.χ. 07:00 και 15:00: αν δώσεις την πρώτη στις 08:20, η επόμενη έρχεται 16:20. Η πρώτη δόση κάθε μέρας μένει στην ώρα της.',
+              'E.g. 07:00 and 15:00: if you give the first at 08:20, the next one comes at 16:20. The first dose of each day stays at its time.',
+            )}
             value={!!draft.fromGiven}
             onChange={fromGiven => patch({ fromGiven })}
           />
         )}
       </Card>
 
-      <SectionTitle>Φάρμακα με τη σειρά</SectionTitle>
+      <SectionTitle>{t('Φάρμακα με τη σειρά', 'Medicines, in order')}</SectionTitle>
       {draft.steps.map((step, i) => {
         const med = medOf(step.medId);
         return (
@@ -208,14 +223,17 @@ export default function RoutineEditor() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="hourglass-outline" size={16} color={c.textSoft} />
                   <Text style={[s.label, { color: c.textSoft }]}>
-                    Πόση ώρα μετά το {medOf(draft.steps[i - 1].medId)?.name ?? 'προηγούμενο'};
+                    {t(
+                      `Πόση ώρα μετά το ${medOf(draft.steps[i - 1].medId)?.name ?? 'προηγούμενο'};`,
+                      `How long after ${medOf(draft.steps[i - 1].medId)?.name ?? 'the previous one'}?`,
+                    )}
                   </Text>
                 </View>
                 <View style={s.wrap}>
                   {WAITS.map(w => (
                     <Chip
                       key={w}
-                      label={w === 0 ? 'Αμέσως' : formatMinutes(w)}
+                      label={w === 0 ? t('Αμέσως', 'Straight away') : formatMinutes(w)}
                       selected={step.waitMin === w}
                       onPress={() => {
                         const steps = [...draft.steps];
@@ -233,7 +251,7 @@ export default function RoutineEditor() {
               <Pressable style={st.medPick} onPress={() => setMedSheet({ index: i })}>
                 <MedIcon kind={med?.kind} color={med?.color} size={38} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[st.medName, { color: c.text }]}>{med?.name ?? 'Διάλεξε φάρμακο'}</Text>
+                  <Text style={[st.medName, { color: c.text }]}>{med?.name ?? t('Διάλεξε φάρμακο', 'Pick a medicine')}</Text>
                   {!!med?.dose && (
                     <Text style={[s.hint, { color: c.textSoft }]} numberOfLines={1}>
                       {med.dose}
@@ -242,15 +260,15 @@ export default function RoutineEditor() {
                 </View>
               </Pressable>
               <View style={{ gap: 4 }}>
-                {i > 0 && <IconButton icon="arrow-up" size={16} label="Πάνω" onPress={() => moveStep(i, -1)} />}
+                {i > 0 && <IconButton icon="arrow-up" size={16} label={t('Πάνω', 'Up')} onPress={() => moveStep(i, -1)} />}
                 {i < draft.steps.length - 1 && (
-                  <IconButton icon="arrow-down" size={16} label="Κάτω" onPress={() => moveStep(i, 1)} />
+                  <IconButton icon="arrow-down" size={16} label={t('Κάτω', 'Down')} onPress={() => moveStep(i, 1)} />
                 )}
               </View>
               <IconButton
                 icon="trash-outline"
                 size={18}
-                label="Αφαίρεση"
+                label={t('Αφαίρεση', 'Remove')}
                 color={c.danger}
                 onPress={() => patch({ steps: draft.steps.filter((_, j) => j !== i) })}
               />
@@ -258,7 +276,7 @@ export default function RoutineEditor() {
           </View>
         );
       })}
-      <Button label="Προσθήκη φαρμάκου" icon="add" onPress={() => setMedSheet({ index: null })} />
+      <Button label={t('Προσθήκη φαρμάκου', 'Add a medicine')} icon="add" onPress={() => setMedSheet({ index: null })} />
 
       {!!summary && (
         <Card style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
@@ -266,19 +284,21 @@ export default function RoutineEditor() {
         </Card>
       )}
 
-      <Button label="Αποθήκευση" kind="primary" icon="checkmark" onPress={save} />
-      {!isNew && <Button label="Διαγραφή ρουτίνας" kind="danger" icon="trash-outline" onPress={remove} />}
+      <Button label={t('Αποθήκευση', 'Save')} kind="primary" icon="checkmark" onPress={save} />
+      {!isNew && (
+        <Button label={t('Διαγραφή ρουτίνας', 'Delete routine')} kind="danger" icon="trash-outline" onPress={remove} />
+      )}
 
       <Sheet
         visible={!!timeSheet}
         onClose={() => setTimeSheet(null)}
-        title={timeSheet?.index == null ? 'Νέα ώρα' : 'Αλλαγή ώρας'}
+        title={timeSheet?.index == null ? t('Νέα ώρα', 'New time') : t('Αλλαγή ώρας', 'Change time')}
       >
         {timeSheet && (
           <>
             <TimePicker value={timeSheet.value} onChange={value => setTimeSheet({ ...timeSheet, value })} />
             <Button
-              label={`Εντάξει · ${timeSheet.value}`}
+              label={t(`Εντάξει · ${timeSheet.value}`, `OK · ${timeSheet.value}`)}
               kind="primary"
               icon="checkmark"
               onPress={() => {
@@ -293,20 +313,20 @@ export default function RoutineEditor() {
         )}
       </Sheet>
 
-      <Sheet visible={!!everySheet} onClose={() => setEverySheet(null)} title="Κάθε Χ ώρες">
+      <Sheet visible={!!everySheet} onClose={() => setEverySheet(null)} title={t('Κάθε Χ ώρες', 'Every X hours')}>
         {everySheet && (
           <>
             <View style={s.wrap}>
               {EVERY.map(h => (
                 <Chip
                   key={h}
-                  label={`Κάθε ${h} ώρες`}
+                  label={t(`Κάθε ${h} ώρες`, `Every ${h} hours`)}
                   selected={everySheet.hours === h}
                   onPress={() => setEverySheet({ ...everySheet, hours: h })}
                 />
               ))}
             </View>
-            <Text style={[s.label, { color: c.textSoft }]}>Πρώτη δόση της μέρας</Text>
+            <Text style={[s.label, { color: c.textSoft }]}>{t('Πρώτη δόση της μέρας', 'First dose of the day')}</Text>
             <TimePicker value={everySheet.first} onChange={first => setEverySheet({ ...everySheet, first })} />
             <Card style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
               <Text style={{ color: c.accentText, fontSize: 16, fontWeight: '700' }}>
@@ -314,7 +334,7 @@ export default function RoutineEditor() {
               </Text>
             </Card>
             <Button
-              label="Εντάξει"
+              label={t('Εντάξει', 'OK')}
               kind="primary"
               icon="checkmark"
               onPress={() => {
@@ -323,14 +343,16 @@ export default function RoutineEditor() {
               }}
             />
             <Text style={[s.hint, { color: c.textMuted }]}>
-              Αντικαθιστά τις ώρες που υπάρχουν ήδη στη ρουτίνα. Κάθε δόση μετράει από την ώρα που έδωσες την
-              προηγούμενη.
+              {t(
+                'Αντικαθιστά τις ώρες που υπάρχουν ήδη στη ρουτίνα. Κάθε δόση μετράει από την ώρα που έδωσες την προηγούμενη.',
+                'Replaces the times already in the routine. Each dose is timed from when you gave the previous one.',
+              )}
             </Text>
           </>
         )}
       </Sheet>
 
-      <Sheet visible={!!medSheet} onClose={() => setMedSheet(null)} title="Διάλεξε φάρμακο">
+      <Sheet visible={!!medSheet} onClose={() => setMedSheet(null)} title={t('Διάλεξε φάρμακο', 'Pick a medicine')}>
         {data.meds.map(m => (
           <Pressable
             key={m.id}
@@ -344,22 +366,31 @@ export default function RoutineEditor() {
             </View>
           </Pressable>
         ))}
-        <SectionTitle>Ή νέο φάρμακο</SectionTitle>
+        <SectionTitle>{t('Ή νέο φάρμακο', 'Or a new medicine')}</SectionTitle>
         <Field
-          label="Όνομα"
+          label={t('Όνομα', 'Name')}
           value={newMed.name}
           onChangeText={name => setNewMed({ ...newMed, name })}
-          placeholder="π.χ. Exocin"
+          placeholder={t('π.χ. Κολλύριο', 'e.g. Eye drops')}
         />
         <Field
-          label="Δόση"
+          label={t('Δόση', 'Dose')}
           value={newMed.dose}
           onChangeText={dose => setNewMed({ ...newMed, dose })}
-          placeholder="π.χ. 1 σταγόνα στο αριστερό μάτι"
+          placeholder={t('π.χ. 1 σταγόνα στο αριστερό μάτι', 'e.g. 1 drop in the left eye')}
         />
-        <Button label="Προσθήκη" kind="primary" icon="add" onPress={createMed} disabled={!newMed.name.trim()} />
+        <Button
+          label={t('Προσθήκη', 'Add')}
+          kind="primary"
+          icon="add"
+          onPress={createMed}
+          disabled={!newMed.name.trim()}
+        />
         <Text style={[s.hint, { color: c.textMuted }]}>
-          Τα υπόλοιπα (είδος, χρώμα, διάρκεια) αλλάζουν από τη «Συνταγή».
+          {t(
+            'Τα υπόλοιπα (είδος, χρώμα, διάρκεια) αλλάζουν από τη «Συνταγή».',
+            'The rest (type, colour, dates) can be changed in Prescription.',
+          )}
         </Text>
       </Sheet>
     </Screen>

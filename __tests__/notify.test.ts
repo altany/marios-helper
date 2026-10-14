@@ -63,8 +63,8 @@ import { sampleData } from './fixtures';
 const DAY = '2026-10-12';
 const t = (hhmm: string) => atTime(DAY, hhmm);
 const EYES = runId('eyes-am-pm', DAY, '09:00');
-const HYLOGEL = stepNotifId(EYES, 0);
-const LACRIMMUNE = stepNotifId(EYES, 1);
+const BLINKDROPS = stepNotifId(EYES, 0);
+const TEARSHIELD = stepNotifId(EYES, 1);
 
 const at = (hhmm: string) => jest.setSystemTime(t(hhmm));
 const press = (id: string, action: string) =>
@@ -85,65 +85,65 @@ beforeAll(async () => {
 
 it('schedules the day ahead', async () => {
   await syncNotifications();
-  expect(mockNotifs.triggers.get(HYLOGEL)?.trigger.timestamp).toBe(t('09:00'));
-  const { notification } = mockNotifs.triggers.get(HYLOGEL)!;
-  expect(notification.title).toBe('Ώρα για Hylogel, Μάριο!');
+  expect(mockNotifs.triggers.get(BLINKDROPS)?.trigger.timestamp).toBe(t('09:00'));
+  const { notification } = mockNotifs.triggers.get(BLINKDROPS)!;
+  expect(notification.title).toBe('Ώρα για Blinkdrops, Μάριο!');
   // Notifee reads the text as HTML, so new lines must be <br>.
-  expect(notification.android.style.text).toBe('<b>1 σταγόνα σε κάθε μάτι</b><br><i>Μετά: Lacrimmune σε 20 λεπτά</i>');
-  expect(mockNotifs.triggers.has(LACRIMMUNE)).toBe(false); // only after Hylogel is given
+  expect(notification.android.style.text).toBe('<b>1 σταγόνα σε κάθε μάτι</b><br><i>Μετά: Tearshield σε 20 λεπτά</i>');
+  expect(mockNotifs.triggers.has(TEARSHIELD)).toBe(false); // only after Blinkdrops is given
   expect(mockNotifs.triggers.size).toBeGreaterThan(30); // about a week
 });
 
 it('repeats an unanswered reminder', async () => {
   at('09:00');
-  mockNotifs.fire(HYLOGEL);
+  mockNotifs.fire(BLINKDROPS);
   await handleEvent(
-    { type: EventType.DELIVERED, detail: { notification: mockNotifs.displayed.get(HYLOGEL)!.notification } },
+    { type: EventType.DELIVERED, detail: { notification: mockNotifs.displayed.get(BLINKDROPS)!.notification } },
     false,
   );
-  expect(mockNotifs.triggers.get(HYLOGEL)?.trigger.timestamp).toBe(t('09:10'));
-  expect(mockNotifs.triggers.get(HYLOGEL)?.notification.title).toBe('Ξέχασες το Hylogel;');
-  expect(mockNotifs.displayed.has(HYLOGEL)).toBe(true);
+  expect(mockNotifs.triggers.get(BLINKDROPS)?.trigger.timestamp).toBe(t('09:10'));
+  expect(mockNotifs.triggers.get(BLINKDROPS)?.notification.title).toBe('Ξέχασες το Blinkdrops;');
+  expect(mockNotifs.displayed.has(BLINKDROPS)).toBe(true);
 });
 
 it('brings it back quietly when swiped away', async () => {
   at('09:02');
-  const notification = mockNotifs.displayed.get(HYLOGEL)!.notification;
-  mockNotifs.displayed.delete(HYLOGEL);
+  const notification = mockNotifs.displayed.get(BLINKDROPS)!.notification;
+  mockNotifs.displayed.delete(BLINKDROPS);
   await handleEvent({ type: EventType.DISMISSED, detail: { notification } }, false);
-  expect(mockNotifs.displayed.get(HYLOGEL)?.notification.android.channelId).toBe(CH_DOSE_QUIET);
+  expect(mockNotifs.displayed.get(BLINKDROPS)?.notification.android.channelId).toBe(CH_DOSE_QUIET);
 });
 
 it('schedules the next medicine from the moment "Το έδωσα" is pressed', async () => {
   at('09:04');
-  await press(HYLOGEL, 'give');
-  expect(mockNotifs.displayed.has(HYLOGEL)).toBe(false);
-  expect(mockNotifs.triggers.has(HYLOGEL)).toBe(false);
-  expect(mockNotifs.triggers.get(LACRIMMUNE)?.trigger.timestamp).toBe(t('09:24'));
-  expect(mockNotifs.triggers.get(LACRIMMUNE)?.notification.android.channelId).toBe(CH_DOSE_BARK);
-  expect(mockNotifs.displayed.has(`${LACRIMMUNE}~wait`)).toBe(true); // countdown
+  await press(BLINKDROPS, 'give');
+  expect(mockNotifs.displayed.has(BLINKDROPS)).toBe(false);
+  expect(mockNotifs.triggers.has(BLINKDROPS)).toBe(false);
+  expect(mockNotifs.triggers.get(TEARSHIELD)?.trigger.timestamp).toBe(t('09:24'));
+  expect(mockNotifs.triggers.get(TEARSHIELD)?.notification.android.channelId).toBe(CH_DOSE_BARK);
+  expect(mockNotifs.displayed.has(`${TEARSHIELD}~wait`)).toBe(true); // countdown
 });
 
 it('snoozes from the notification', async () => {
   at('09:24');
-  mockNotifs.fire(LACRIMMUNE);
-  await press(LACRIMMUNE, 'snooze');
-  expect(mockNotifs.displayed.has(LACRIMMUNE)).toBe(false);
-  expect(mockNotifs.triggers.get(LACRIMMUNE)?.trigger.timestamp).toBe(t('09:34'));
+  mockNotifs.fire(TEARSHIELD);
+  await press(TEARSHIELD, 'snooze');
+  expect(mockNotifs.displayed.has(TEARSHIELD)).toBe(false);
+  expect(mockNotifs.triggers.get(TEARSHIELD)?.trigger.timestamp).toBe(t('09:34'));
 });
 
 it('ignores a button on a reminder that was already answered', async () => {
   at('09:35');
-  mockNotifs.fire(LACRIMMUNE);
-  const stale = mockNotifs.displayed.get(LACRIMMUNE)!.notification;
-  await press(LACRIMMUNE, 'give');
+  mockNotifs.fire(TEARSHIELD);
+  const stale = mockNotifs.displayed.get(TEARSHIELD)!.notification;
+  await press(TEARSHIELD, 'give');
   const given = (await getData()).runs[EYES].marks[1].at;
   await handleEvent(
     { type: EventType.ACTION_PRESS, detail: { notification: stale, pressAction: { id: 'snooze' } } },
     false,
   );
   expect((await getData()).runs[EYES].marks[1].at).toBe(given);
-  expect(mockNotifs.triggers.has(LACRIMMUNE)).toBe(false);
+  expect(mockNotifs.triggers.has(TEARSHIELD)).toBe(false);
 });
 
 it('moves one reminder to another time only that day', async () => {
@@ -190,4 +190,25 @@ it('uses the usual sound when barking is off', async () => {
   await syncNotifications();
   const channels = new Set(Array.from(mockNotifs.triggers.values()).map(n => n.notification.android.channelId));
   expect(channels).toEqual(new Set([CH_DOSE]));
+});
+
+it('speaks English when the language is English', async () => {
+  await update(d => {
+    d.settings.language = 'en';
+    d.settings.petName = 'Mario';
+  });
+  await syncNotifications();
+  const tomorrow = runId('eyes-am-pm', '2026-10-13', '09:00');
+  const { notification } = mockNotifs.triggers.get(stepNotifId(tomorrow, 0))!;
+  expect(notification.title).toBe('Time for Blinkdrops, Mario!');
+  expect(notification.android.style.text).toBe('<b>1 σταγόνα σε κάθε μάτι</b><br><i>Next: Tearshield in 20 minutes</i>');
+  expect(notification.android.actions.map((a: { title: string }) => a.title)).toEqual(['I gave it', 'Later 10 minutes']);
+
+  // Back to Greek: the scheduled reminders are rewritten.
+  await update(d => {
+    d.settings.language = 'el';
+    d.settings.petName = 'Μάριο';
+  });
+  await syncNotifications();
+  expect(mockNotifs.triggers.get(stepNotifId(tomorrow, 0))!.notification.title).toBe('Ώρα για Blinkdrops, Μάριο!');
 });

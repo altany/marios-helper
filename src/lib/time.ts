@@ -1,3 +1,5 @@
+import { lang, t } from '../i18n';
+
 // Small date helpers. Dates are stored as local "YYYY-MM-DD" keys and times of
 // day as "HH:MM", so a schedule keeps meaning the same wall-clock time across
 // daylight-saving changes.
@@ -76,65 +78,74 @@ export const weekday = (key: string) => parseDateKey(key).getDay();
 export const sortTimes = (times: string[]) =>
   Array.from(new Set(times)).sort((a, b) => hhmmToMinutes(a) - hhmmToMinutes(b));
 
-// ── Greek labels ──────────────────────────────────────────────────────────────
+// ── Labels (Greek or English) ─────────────────────────────────────────────────
 
-export const DAY_NAMES = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
-export const DAY_SHORT = ['Κυρ', 'Δευ', 'Τρί', 'Τετ', 'Πέμ', 'Παρ', 'Σάβ'];
-export const MONTHS = [
-  'Ιανουαρίου',
-  'Φεβρουαρίου',
-  'Μαρτίου',
-  'Απριλίου',
-  'Μαΐου',
-  'Ιουνίου',
-  'Ιουλίου',
-  'Αυγούστου',
-  'Σεπτεμβρίου',
-  'Οκτωβρίου',
-  'Νοεμβρίου',
-  'Δεκεμβρίου',
-];
-export const MONTHS_SHORT = ['Ιαν', 'Φεβ', 'Μαρ', 'Απρ', 'Μαΐ', 'Ιουν', 'Ιουλ', 'Αυγ', 'Σεπ', 'Οκτ', 'Νοε', 'Δεκ'];
+export const dayNames = () =>
+  t(
+    ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'],
+    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  );
+export const dayShort = () =>
+  t(['Κυρ', 'Δευ', 'Τρί', 'Τετ', 'Πέμ', 'Παρ', 'Σάβ'], ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+export const monthsShort = () =>
+  t(
+    ['Ιαν', 'Φεβ', 'Μαρ', 'Απρ', 'Μαΐ', 'Ιουν', 'Ιουλ', 'Αυγ', 'Σεπ', 'Οκτ', 'Νοε', 'Δεκ'],
+    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  );
 
-/** "Τρίτη 13 Οκτ" */
+/** "Τρίτη 13 Οκτ" / "Tuesday 13 Oct" */
 export const formatDate = (key: string, withWeekday = true): string => {
   const d = parseDateKey(key);
-  const base = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
-  return withWeekday ? `${DAY_NAMES[d.getDay()]} ${base}` : base;
+  const base = `${d.getDate()} ${monthsShort()[d.getMonth()]}`;
+  return withWeekday ? `${dayNames()[d.getDay()]} ${base}` : base;
 };
 
-/** "Σήμερα", "Αύριο", "Χθες" or "Τρίτη 13 Οκτ". */
+/** "Σήμερα", "Αύριο", "Χθες" or "Τρίτη 13 Οκτ" (Today, Tomorrow, Yesterday). */
 export const relativeDay = (key: string, today: string): string => {
   const diff = daysBetween(today, key);
-  if (diff === 0) return 'Σήμερα';
-  if (diff === 1) return 'Αύριο';
-  if (diff === -1) return 'Χθες';
+  if (diff === 0) return t('Σήμερα', 'Today');
+  if (diff === 1) return t('Αύριο', 'Tomorrow');
+  if (diff === -1) return t('Χθες', 'Yesterday');
   return formatDate(key);
 };
 
-/** "20′", "1 ώρα", "1 ώρα 30′", "2 ώρες" */
+/** "20′", "1 ώρα", "1 ώρα 30′", "2 ώρες" / "20 min", "1 hr", "1 hr 30 min", "2 hrs" */
 export const formatMinutes = (min: number): string => {
   const m = Math.round(min);
-  if (m < 60) return `${m}′`;
+  if (m < 60) return t(`${m}′`, `${m} min`);
   const h = Math.floor(m / 60);
   const rest = m % 60;
-  const hours = h === 1 ? '1 ώρα' : `${h} ώρες`;
-  return rest ? `${hours} ${rest}′` : hours;
+  const hours = h === 1 ? t('1 ώρα', '1 hr') : t(`${h} ώρες`, `${h} hrs`);
+  return rest ? `${hours} ${t(`${rest}′`, `${rest} min`)}` : hours;
 };
 
-/** "20 λεπτά", "1 ώρα και 30 λεπτά" – plain words, for notifications (some watches can't show ′). */
+/** Like formatMinutes, for small buttons: the same in Greek, "20m", "1h 30m" in English. */
+export const formatMinutesShort = (min: number): string => {
+  if (lang() === 'el') return formatMinutes(min);
+  const m = Math.round(min);
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return [h ? `${h}h` : '', rest || !h ? `${rest}m` : ''].filter(Boolean).join(' ');
+};
+
+/**
+ * "20 λεπτά", "1 ώρα και 30 λεπτά" / "20 minutes", "1 hour and 30 minutes":
+ * plain words, for notifications (some watches can't show ′).
+ */
 export const formatMinutesWords = (min: number): string => {
   const m = Math.round(min);
   const h = Math.floor(m / 60);
   const rest = m % 60;
-  const hours = h === 0 ? '' : h === 1 ? '1 ώρα' : `${h} ώρες`;
-  const minutes = rest === 0 ? '' : rest === 1 ? '1 λεπτό' : `${rest} λεπτά`;
-  return [hours, minutes].filter(Boolean).join(' και ') || '0 λεπτά';
+  const hours = h === 0 ? '' : h === 1 ? t('1 ώρα', '1 hour') : t(`${h} ώρες`, `${h} hours`);
+  const minutes = rest === 0 ? '' : rest === 1 ? t('1 λεπτό', '1 minute') : t(`${rest} λεπτά`, `${rest} minutes`);
+  return [hours, minutes].filter(Boolean).join(t(' και ', ' and ')) || t('0 λεπτά', '0 minutes');
 };
 
-/** Human countdown/age, e.g. "σε 12′" or "πριν 1 ώρα 5′". */
-export const formatFromNow = (t: number, now: number): string => {
-  const diff = Math.round((t - now) / MINUTE);
-  if (diff === 0) return 'τώρα';
-  return diff > 0 ? `σε ${formatMinutes(diff)}` : `πριν ${formatMinutes(-diff)}`;
+/** Human countdown/age, e.g. "σε 12′" or "πριν 1 ώρα 5′" / "in 12 min" or "1 hr 5 min ago". */
+export const formatFromNow = (when: number, now: number): string => {
+  const diff = Math.round((when - now) / MINUTE);
+  if (diff === 0) return t('τώρα', 'now');
+  return diff > 0
+    ? t(`σε ${formatMinutes(diff)}`, `in ${formatMinutes(diff)}`)
+    : t(`πριν ${formatMinutes(-diff)}`, `${formatMinutes(-diff)} ago`);
 };
