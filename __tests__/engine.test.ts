@@ -200,9 +200,28 @@ describe('runs', () => {
       return data;
     };
 
-    it('keeps the planned time until the previous dose is given', () => {
+    it('keeps the planned times while nothing is late', () => {
       const data = every8();
       expect(buildRun(data, PILL('15:00'), t('08:00'))!.startAt).toBe(t('15:00'));
+      expect(buildRun(data, PILL('23:00'), t('08:00'))!.startAt).toBe(t('23:00'));
+    });
+
+    it('moves the rest of the day along as soon as the first dose is late', () => {
+      const data = every8();
+      markStep(data, PILL('07:00'), 0, 'given', t('08:00'));
+      expect(buildRun(data, PILL('15:00'), t('08:05'))!.startAt).toBe(t('16:00'));
+      // The third follows the second's new time before the second is given…
+      expect(buildRun(data, PILL('23:00'), t('08:05'))!.startAt).toBe(t('00:00', '2026-10-13'));
+      // …and moves again when the second is actually given.
+      markStep(data, PILL('15:00'), 0, 'given', t('16:30'));
+      expect(buildRun(data, PILL('23:00'), t('16:35'))!.startAt).toBe(t('00:30', '2026-10-13'));
+    });
+
+    it('goes back to the planned time when the previous dose is skipped', () => {
+      const data = every8();
+      markStep(data, PILL('07:00'), 0, 'given', t('08:00'));
+      markStep(data, PILL('15:00'), 0, 'skipped', t('15:30'));
+      expect(buildRun(data, PILL('23:00'), t('15:35'))!.startAt).toBe(t('23:00'));
     });
 
     it('moves the next dose 8 hours after the previous one was given', () => {

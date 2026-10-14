@@ -91,15 +91,20 @@ export const emptyRecord = (id: string): RunRecord => {
 
 /**
  * For a routine counted from the previous dose: when this time's dose comes, or
- * null to keep the planned time (first time of the day, or previous dose not given).
+ * null to keep the planned time. It counts from when the previous dose was
+ * given, or, while that one is still to come, from when it is due, so a late
+ * morning moves the whole rest of the day along. Skipped or missed: planned time.
  */
 const followedStart = (data: AppData, routine: Routine, date: string, time: string, now: number) => {
   const times = sortTimes(routine.times);
   const i = times.indexOf(time);
   if (i <= 0) return null;
   const prev = buildRun(data, runId(routine.id, date, times[i - 1]), now)?.steps[0];
-  if (prev?.status !== 'given' || prev.markedAt == null) return null;
-  return prev.markedAt + (atTime(date, time) - atTime(date, times[i - 1]));
+  if (!prev) return null;
+  const base =
+    prev.status === 'given' ? prev.markedAt : prev.status === 'due' || prev.status === 'upcoming' ? prev.dueAt : null;
+  if (base == null) return null;
+  return base + (atTime(date, time) - atTime(date, times[i - 1]));
 };
 
 export const buildRun = (
