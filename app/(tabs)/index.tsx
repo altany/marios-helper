@@ -36,6 +36,7 @@ import {
   useNow,
 } from '../../src/ui/components';
 import { RunCard } from '../../src/ui/dose';
+import { PhysioCard } from '../../src/ui/physio';
 import { RunSheet } from '../../src/ui/RunSheet';
 import { Colors, rounded, useColors } from '../../src/ui/theme';
 import { toast } from '../../src/ui/toast';
@@ -169,6 +170,8 @@ export default function TodayScreen() {
         ))}
 
         {next && <NextCard run={next.run} step={next.step} now={now} onPress={() => setOpenRun(next.run.id)} />}
+
+        <PhysioCard data={data} date={date} now={now} />
 
         <SectionTitle>{isPast ? t('Τι δόθηκε', 'What was given') : t('Πρόγραμμα ημέρας', "The day's schedule")}</SectionTitle>
         {data.routines.length === 0 ? (

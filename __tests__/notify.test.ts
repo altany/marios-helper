@@ -51,6 +51,7 @@ jest.mock('../src/notify/driver', () => {
 
 import { EventType } from '@notifee/react-native/dist/types/Notification';
 import { markStep } from '../src/engine/actions';
+import { apptNotifId, physioNotifId, saveAppointment, setPhysioDaily } from '../src/engine/physio';
 import { runId, runsForDay, stepNotifId } from '../src/engine/runs';
 import { atTime } from '../src/lib/time';
 import { CH_DOSE, CH_DOSE_BARK, CH_DOSE_QUIET } from '../src/notify/channels';
@@ -211,4 +212,65 @@ it('speaks English when the language is English', async () => {
   });
   await syncNotifications();
   expect(mockNotifs.triggers.get(stepNotifId(tomorrow, 0))!.notification.title).toBe('Ώρα για Blinkdrops, Μάριο!');
+});
+
+describe('physio', () => {
+  const DAY2 = '2026-10-13';
+  const PHYSIO = physioNotifId(DAY2);
+  const at2 = (hhmm: string, day = DAY2) => jest.setSystemTime(atTime(day, hhmm));
+
+  it('reminds at the physio time, with buttons for the watch', async () => {
+    at2('08:00');
+    await update(d => setPhysioDaily(d, true, DAY2));
+    await syncNotifications();
+    const { notification, trigger } = mockNotifs.triggers.get(PHYSIO)!;
+    expect(trigger.timestamp).toBe(atTime(DAY2, '18:00'));
+    expect(notification.title).toBe('Ώρα για φυσικοθεραπεία, Μάριο!');
+    expect(notification.android.actions.map((a: { title: string }) => a.title)).toEqual(['Έγινε', 'Αργότερα 1 ώρα']);
+  });
+
+  it('moves it an hour with "Αργότερα"', async () => {
+    at2('18:00');
+    mockNotifs.fire(PHYSIO);
+    await press(PHYSIO, 'physio-later');
+    expect(mockNotifs.displayed.has(PHYSIO)).toBe(false);
+    expect(mockNotifs.triggers.get(PHYSIO)?.trigger.timestamp).toBe(atTime(DAY2, '19:00'));
+  });
+
+  it('comes back quietly when swiped away', async () => {
+    at2('19:00');
+    mockNotifs.fire(PHYSIO);
+    const notification = mockNotifs.displayed.get(PHYSIO)!.notification;
+    mockNotifs.displayed.delete(PHYSIO);
+    await handleEvent({ type: EventType.DISMISSED, detail: { notification } }, false);
+    expect(mockNotifs.displayed.get(PHYSIO)?.notification.android.channelId).toBe(CH_DOSE_QUIET);
+  });
+
+  it('marks the day done from the notification', async () => {
+    at2('19:05');
+    await press(PHYSIO, 'physio-done');
+    expect((await getData()).physio.done[DAY2]?.at).toBe(atTime(DAY2, '19:05'));
+    expect(mockNotifs.displayed.has(PHYSIO)).toBe(false);
+    expect(mockNotifs.triggers.has(PHYSIO)).toBe(false);
+    const tomorrow = mockNotifs.triggers.get(physioNotifId('2026-10-14'));
+    expect(tomorrow?.trigger.timestamp).toBe(atTime('2026-10-14', '18:00'));
+  });
+
+  it('reminds an hour before a visit, until the visit starts', async () => {
+    const VISIT = apptNotifId('v1');
+    await update(d => saveAppointment(d, { id: 'v1', at: atTime('2026-10-14', '17:30'), note: 'Υδροθεραπεία' }));
+    await syncNotifications();
+    const { notification, trigger } = mockNotifs.triggers.get(VISIT)!;
+    expect(trigger.timestamp).toBe(atTime('2026-10-14', '16:30'));
+    expect(notification.title).toBe('Ραντεβού φυσικοθεραπείας στις 17:30');
+    expect(notification.body).toBe('Σε 1 ώρα.<br>Υδροθεραπεία');
+
+    at2('16:30', '2026-10-14');
+    mockNotifs.fire(VISIT);
+    await syncNotifications();
+    expect(mockNotifs.displayed.has(VISIT)).toBe(true);
+    at2('17:31', '2026-10-14');
+    await syncNotifications();
+    expect(mockNotifs.displayed.has(VISIT)).toBe(false);
+  });
 });

@@ -1,5 +1,5 @@
 import { atTime, DAY, hhmmToMinutes, HOUR, pad, sortTimes } from '../lib/time';
-import { DEFAULT_SETTINGS, MED_COLORS } from './defaults';
+import { DEFAULT_SETTINGS, defaultPhysio, MED_COLORS } from './defaults';
 import { AppData, Medication, Routine } from './types';
 
 // Shape saved by the previous version of the app (AsyncStorage key 'medication_settings_v2').
@@ -104,6 +104,7 @@ export const migrateV2 = (old: V2Schedule[], now: number): AppData => {
     runs: {},
     settings: { ...DEFAULT_SETTINGS },
     prescription: { vetName: '', vetPhone: '', notes: '' },
+    physio: defaultPhysio(),
     dismissed: {},
   };
 };
@@ -143,5 +144,7 @@ export const normalize = (data: AppData): AppData => ({
   runs: repairMovedRuns(data.runs ?? {}),
   settings: { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) },
   prescription: { ...{ vetName: '', vetPhone: '', notes: '' }, ...data.prescription },
+  // Added later: physio.
+  physio: { ...defaultPhysio(), ...data.physio },
   dismissed: data.dismissed ?? {},
 });

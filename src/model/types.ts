@@ -116,6 +116,36 @@ export interface Prescription {
   notes: string;
 }
 
+/** A visit to the physio. */
+export interface Appointment {
+  id: string;
+  /** When it starts (epoch ms). */
+  at: number;
+  /** Where, what to bring, what the physio said… */
+  note: string;
+}
+
+/** One day of physio exercises at home. Room for more later (e.g. which exercises, how many). */
+export interface PhysioDone {
+  /** When it was marked done. */
+  at: number;
+}
+
+/** Physio: exercises at home every day, and visits to the physio. */
+export interface Physio {
+  /** Exercises every day: shown on the Today screen, with a reminder at `time` if not done yet. */
+  daily: boolean;
+  /** "HH:MM" */
+  time: string;
+  /** Day the daily exercises were turned on (YYYY-MM-DD). Days before it don't count as missed. */
+  since?: string;
+  /** date (YYYY-MM-DD) → done that day */
+  done: Record<string, PhysioDone>;
+  /** date → the reminder was moved to this moment ("Αργότερα") */
+  snoozed: Record<string, number>;
+  appointments: Appointment[];
+}
+
 export interface AppData {
   version: 3;
   meds: Medication[];
@@ -123,6 +153,7 @@ export interface AppData {
   runs: Record<string, RunRecord>;
   settings: Settings;
   prescription: Prescription;
+  physio: Physio;
   /** notification id → time it was swiped away (only used when sticky is off). */
   dismissed: Record<string, number>;
 }

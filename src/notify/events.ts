@@ -1,14 +1,16 @@
+import { PHYSIO_SNOOZE_MIN, physioDay } from '../engine/physio';
 import { buildRun, dayDone, nextUpcoming } from '../engine/runs';
 import { dateKey } from '../lib/time';
 import { getData, update } from '../store/store';
-import { giveStep, snoozeStepFor } from './commands';
-import { ACTION_GIVE, ACTION_SNOOZE, bravoNotification } from './content';
+import { giveStep, physioDone, snoozePhysioFor, snoozeStepFor } from './commands';
+import { ACTION_GIVE, ACTION_PHYSIO_DONE, ACTION_PHYSIO_LATER, ACTION_SNOOZE, bravoNotification } from './content';
 import notifee, { Event, EventType } from './driver';
 import { redisplayQuietly, syncNotifications } from './sync';
 
 // Handles taps on notifications. Runs both when the app is open (foreground)
 // and when Android wakes the app in the background (app closed), so the
-// "Το έδωσα" button on the phone or the watch always schedules the next medicine.
+// "Το έδωσα" button on the phone or the watch always schedules the next medicine
+// (and "Έγινε" on the physio reminder marks the day done).
 
 export const TEST_NOTIFICATION_ID = 'test-notification';
 
@@ -57,6 +59,36 @@ const celebrateIfDayDone = async (runId: string) => {
   await notifee.displayNotification(bravoNotification(data, nextUpcoming(data, now), now));
 };
 
+/** The daily physio reminder and the reminder before a visit. Tapping them just opens the app. */
+const handlePhysioEvent = async ({ type, detail }: Event) => {
+  const notifId = detail.notification?.id;
+  const date = detail.notification?.data?.date;
+  if (!notifId || typeof date !== 'string') return; // a visit reminder: nothing to answer
+
+  switch (type) {
+    case EventType.ACTION_PRESS: {
+      const day = physioDay(await getData(), date, Date.now());
+      const action = detail.pressAction?.id;
+      if (action === ACTION_PHYSIO_DONE && day.status !== 'done') await physioDone(date);
+      else if (action === ACTION_PHYSIO_LATER && day.status === 'due') await snoozePhysioFor(date, PHYSIO_SNOOZE_MIN);
+      else await syncNotifications(); // a stale button: clear it
+      return;
+    }
+    case EventType.DISMISSED: {
+      const data = await getData();
+      if (data.settings.sticky) await redisplayQuietly(notifId);
+      else
+        await update(d => {
+          d.dismissed[notifId] = Date.now();
+        });
+      return;
+    }
+    case EventType.DELIVERED:
+      await syncNotifications();
+      return;
+  }
+};
+
 export const handleEvent = async (event: Event, foreground: boolean) => {
   const { type, detail } = event;
   const notifId = detail.notification?.id;
@@ -65,6 +97,9 @@ export const handleEvent = async (event: Event, foreground: boolean) => {
     if (type === EventType.ACTION_PRESS || type === EventType.PRESS) await notifee.cancelNotification(notifId);
     return;
   }
+
+  const kind = detail.notification?.data?.kind;
+  if (kind === 'physio' || kind === 'appt') return handlePhysioEvent(event);
 
   const target = targetOf(event);
   if (!target) return;

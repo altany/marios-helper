@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 import { t } from '../../src/i18n';
 import { hhmmToMinutes, dateKey, daysBetween, formatDate, monthsShort, parseDateKey } from '../../src/lib/time';
+import { upcomingAppointments } from '../../src/engine/physio';
 import { firstPrescription } from '../../src/model/firstPrescription';
 import { kindInfo } from '../../src/model/defaults';
 import { AppData, Medication } from '../../src/model/types';
@@ -22,6 +23,7 @@ import {
   Sheet,
   useNow,
 } from '../../src/ui/components';
+import { apptWhen, PhysioIcon } from '../../src/ui/physio';
 import { DatePicker } from '../../src/ui/pickers';
 import { rounded, useColors } from '../../src/ui/theme';
 import { toast } from '../../src/ui/toast';
@@ -76,6 +78,7 @@ export default function PrescriptionScreen() {
   const ended = data.meds.filter(m => periodText(m, today)?.ended);
   const visitIn = p.nextVisit ? daysBetween(today, p.nextVisit) : null;
   const first = firstPrescription();
+  const nextVisit = upcomingAppointments(data, now)[0];
 
   const saveVet = async () => {
     await act(d => {
@@ -169,6 +172,29 @@ export default function PrescriptionScreen() {
               {t('Πρόσθεσε όνομα, τηλέφωνο και ημερομηνία επανελέγχου.', 'Add a name, a phone number and the check-up date.')}
             </Text>
           )
+        )}
+      </Card>
+
+      <Card onPress={() => router.push('/physio')}>
+        <View style={st.medHead}>
+          <PhysioIcon />
+          <View style={{ flex: 1 }}>
+            <Text style={[st.medName, { color: c.text }]}>{t('Φυσικοθεραπεία', 'Physio')}</Text>
+            <Text style={[s.hint, { color: c.textSoft }]}>
+              {data.physio.daily
+                ? t(`Ασκήσεις κάθε μέρα · υπενθύμιση ${data.physio.time}`, `Exercises every day · reminder ${data.physio.time}`)
+                : t('Ασκήσεις κάθε μέρα και ραντεβού', 'Daily exercises and appointments')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={c.textMuted} />
+        </View>
+        {nextVisit && (
+          <View style={st.meta}>
+            <Ionicons name="calendar-outline" size={14} color={c.warn} />
+            <Text style={[st.metaText, { color: c.warn }]}>
+              {t(`Επόμενο ραντεβού: ${apptWhen(nextVisit, today)}`, `Next appointment: ${apptWhen(nextVisit, today)}`)}
+            </Text>
+          </View>
         )}
       </Card>
 

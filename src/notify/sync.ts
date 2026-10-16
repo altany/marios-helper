@@ -1,18 +1,28 @@
 import { Platform } from 'react-native';
+import { isPhysioNotif } from '../engine/physio';
 import { planNotifications } from '../engine/plan';
 import { parseNotifId } from '../engine/runs';
 import { MINUTE } from '../lib/time';
 import { getData } from '../store/store';
-import { countdownNotification, doseNotification, signature } from './content';
+import {
+  appointmentNotification,
+  countdownNotification,
+  doseNotification,
+  physioNotification,
+  signature,
+} from './content';
 import notifee, { AlarmType, AndroidNotificationSetting, TriggerType } from './driver';
 
 // Makes Android's scheduled and shown notifications match the plan:
 //  - one alarm per medicine that is coming up (or the next repeat of one that is due),
 //  - due medicines stay visible until answered,
+//  - the same for the daily physio reminder (until the end of the day), and a
+//    reminder before each physio visit,
 //  - everything else of ours is removed.
 // It is safe to call any time; it only changes what differs.
 
-const isOurs = (id: string | undefined): id is string => !!id && parseNotifId(id.replace(/~wait$/, '')) != null;
+const isOurs = (id: string | undefined): id is string =>
+  !!id && (parseNotifId(id.replace(/~wait$/, '')) != null || isPhysioNotif(id));
 
 let running: Promise<void> | null = null;
 let again = false;
@@ -57,11 +67,17 @@ const syncOnce = async () => {
 
   // 1. Scheduled alarms
   const wanted = new Map<string, { notification: ReturnType<typeof doseNotification>; at: number }>();
+  const want = (notification: ReturnType<typeof doseNotification>, at: number) => {
+    notification.data.sig = signature(notification, at);
+    wanted.set(notification.id, { notification, at });
+  };
   for (const alert of plan.alerts) {
     if (wanted.has(alert.notifId)) continue;
-    const notification = doseNotification(data, alert.run, alert.step, { postAt: alert.at });
-    notification.data.sig = signature(notification, alert.at);
-    wanted.set(alert.notifId, { notification, at: alert.at });
+    want(doseNotification(data, alert.run, alert.step, { postAt: alert.at }), alert.at);
+  }
+  for (const alert of plan.physio.alerts) {
+    if (alert.day) want(physioNotification(data, alert.day, { postAt: alert.at }), alert.at);
+    else if (alert.appt) want(appointmentNotification(alert.appt, alert.at), alert.at);
   }
 
   for (const existing of await notifee.getTriggerNotifications()) {
@@ -92,10 +108,15 @@ const syncOnce = async () => {
     if (isOurs(id)) shown.set(id, d.notification?.data);
   }
 
-  const dueIds = new Set(plan.due.filter(d => d.visible).map(d => d.step.notifId));
-  const waitIds = new Set(plan.countdowns.map(c => c.notifId));
+  const physioDue = plan.physio.due?.visible ? plan.physio.due.day : null;
+  const keep = new Set([
+    ...plan.due.filter(d => d.visible).map(d => d.step.notifId),
+    ...plan.countdowns.map(c => c.notifId),
+    ...(physioDue ? [physioDue.notifId] : []),
+    ...plan.physio.keep,
+  ]);
   for (const id of shown.keys()) {
-    if (!dueIds.has(id) && !waitIds.has(id)) await notifee.cancelDisplayedNotification(id);
+    if (!keep.has(id)) await notifee.cancelDisplayedNotification(id);
   }
 
   for (const d of plan.due) {
@@ -106,6 +127,11 @@ const syncOnce = async () => {
     await notifee.displayNotification(doseNotification(data, d.run, d.step, { quiet: !fresh }));
   }
 
+  if (physioDue && !shown.has(physioDue.notifId)) {
+    const quiet = now - physioDue.dueAt >= 2 * MINUTE; // only make noise if it became due a moment ago
+    await notifee.displayNotification(physioNotification(data, physioDue, { quiet }));
+  }
+
   for (const c of plan.countdowns) {
     if (c.step.dueAt - now < MINUTE) continue;
     const notification = countdownNotification(data, c.run, c.step, c.after, now);
@@ -114,10 +140,15 @@ const syncOnce = async () => {
   }
 };
 
-/** Shows a due medicine again without sound (after it was swiped away). */
+/** Shows a due medicine (or the physio reminder) again without sound, after it was swiped away. */
 export const redisplayQuietly = async (notifId: string) => {
   const data = await getData();
   const plan = planNotifications(data, Date.now());
+  const physio = plan.physio.due;
+  if (physio?.visible && physio.day.notifId === notifId) {
+    await notifee.displayNotification(physioNotification(data, physio.day, { quiet: true }));
+    return;
+  }
   const due = plan.due.find(d => d.step.notifId === notifId);
   if (due?.visible) await notifee.displayNotification(doseNotification(data, due.run, due.step, { quiet: true }));
 };
