@@ -1,5 +1,5 @@
 import { atTime, DAY, hhmmToMinutes, HOUR, pad, sortTimes } from '../lib/time';
-import { DEFAULT_SETTINGS, MED_COLORS } from './defaults';
+import { DEFAULT_SETTINGS, defaultPhysio, MED_COLORS } from './defaults';
 import { AppData, Medication, Routine } from './types';
 
 // Shape saved by the previous version of the app (AsyncStorage key 'medication_settings_v2').
@@ -38,9 +38,9 @@ const chainDepthAt = (s: V2Schedule, hour: number): number => {
 
 /**
  * Turns the old per-medicine schedule into medicines + routines. Hours that ran
- * a different part of the chain become separate routines, e.g. Hylogel at 9/15/21
- * with Lacrimmune only after 9 and 21 → "Hylogel → Lacrimmune" at 09:00, 21:00
- * and "Hylogel" at 15:00.
+ * a different part of the chain become separate routines, e.g. Blinkdrops at 9/15/21
+ * with Tearshield only after 9 and 21 → "Blinkdrops → Tearshield" at 09:00, 21:00
+ * and "Blinkdrops" at 15:00.
  */
 export const migrateV2 = (old: V2Schedule[], now: number): AppData => {
   const meds: Medication[] = [];
@@ -104,6 +104,7 @@ export const migrateV2 = (old: V2Schedule[], now: number): AppData => {
     runs: {},
     settings: { ...DEFAULT_SETTINGS },
     prescription: { vetName: '', vetPhone: '', notes: '' },
+    physio: defaultPhysio(),
     dismissed: {},
   };
 };
@@ -143,5 +144,7 @@ export const normalize = (data: AppData): AppData => ({
   runs: repairMovedRuns(data.runs ?? {}),
   settings: { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) },
   prescription: { ...{ vetName: '', vetPhone: '', notes: '' }, ...data.prescription },
+  // Added later: physio.
+  physio: { ...defaultPhysio(), ...data.physio },
   dismissed: data.dismissed ?? {},
 });

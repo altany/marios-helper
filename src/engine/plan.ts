@@ -1,5 +1,6 @@
 import { addDays, dateKey, DAY, MINUTE } from '../lib/time';
 import { AppData } from '../model/types';
+import { planPhysio, PhysioPlan } from './physio';
 import { listRuns, RunView, StepView } from './runs';
 
 // Works out which notifications should exist right now. The notification layer
@@ -42,6 +43,7 @@ export interface NotificationPlan {
   alerts: PlannedAlert[];
   due: DueNow[];
   countdowns: Countdown[];
+  physio: PhysioPlan;
 }
 
 export const planNotifications = (data: AppData, now: number): NotificationPlan => {
@@ -52,7 +54,7 @@ export const planNotifications = (data: AppData, now: number): NotificationPlan 
   const today = dateKey(now);
   const back = Math.ceil(missAfterMin / (24 * 60)) + 1;
 
-  const plan: NotificationPlan = { alerts: [], due: [], countdowns: [] };
+  const plan: NotificationPlan = { alerts: [], due: [], countdowns: [], physio: planPhysio(data, now, HORIZON_DAYS) };
   if (data.settings.paused) return plan;
 
   for (const run of listRuns(data, addDays(today, -back), addDays(today, HORIZON_DAYS), now)) {

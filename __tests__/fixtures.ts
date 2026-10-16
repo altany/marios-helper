@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, MED_COLORS } from '../src/model/defaults';
+import { DEFAULT_SETTINGS, defaultPhysio, MED_COLORS } from '../src/model/defaults';
 import { AppData } from '../src/model/types';
 
 /** Sample schedule for tests (Mario's medicines in October 2026). */
@@ -6,24 +6,24 @@ export const sampleData = (now: number): AppData => ({
   version: 3,
   meds: [
     {
-      id: 'hylogel',
-      name: 'Hylogel',
+      id: 'blinkdrops',
+      name: 'Blinkdrops',
       kind: 'drops',
       dose: '1 σταγόνα σε κάθε μάτι',
       notes: '',
       color: MED_COLORS[0],
     },
     {
-      id: 'lacrimmune',
-      name: 'Lacrimmune',
+      id: 'tearshield',
+      name: 'Tearshield',
       kind: 'ointment',
       dose: '1 κόκκος ρυζιού στο αριστερό μάτι',
       notes: 'Μετά κάνε απαλό μασάζ στο βλέφαρο.',
       color: MED_COLORS[2],
     },
     {
-      id: 'depon',
-      name: 'Depon',
+      id: 'pawmol',
+      name: 'Pawmol',
       kind: 'pill',
       dose: '1/4 του δισκίου',
       notes: '',
@@ -37,8 +37,8 @@ export const sampleData = (now: number): AppData => ({
       times: ['09:00', '21:00'],
       days: [],
       steps: [
-        { id: 's-hylogel', medId: 'hylogel', waitMin: 0 },
-        { id: 's-lacrimmune', medId: 'lacrimmune', waitMin: 20 },
+        { id: 's-blinkdrops', medId: 'blinkdrops', waitMin: 0 },
+        { id: 's-tearshield', medId: 'tearshield', waitMin: 20 },
       ],
       enabled: true,
       createdAt: now,
@@ -48,7 +48,7 @@ export const sampleData = (now: number): AppData => ({
       name: 'Μάτια (μεσημέρι)',
       times: ['15:00'],
       days: [],
-      steps: [{ id: 's-hylogel-noon', medId: 'hylogel', waitMin: 0 }],
+      steps: [{ id: 's-blinkdrops-noon', medId: 'blinkdrops', waitMin: 0 }],
       enabled: true,
       createdAt: now,
     },
@@ -57,13 +57,14 @@ export const sampleData = (now: number): AppData => ({
       name: 'Παυσίπονο',
       times: ['09:00', '15:00', '21:00'],
       days: [],
-      steps: [{ id: 's-depon', medId: 'depon', waitMin: 0 }],
+      steps: [{ id: 's-pawmol', medId: 'pawmol', waitMin: 0 }],
       enabled: true,
       createdAt: now,
     },
   ],
   runs: {},
-  settings: { ...DEFAULT_SETTINGS },
+  settings: { ...DEFAULT_SETTINGS, language: 'el' },
   prescription: { vetName: '', vetPhone: '', notes: '' },
+  physio: defaultPhysio(),
   dismissed: {},
 });

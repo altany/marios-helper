@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { t } from '../i18n';
 import { Settings } from '../model/types';
 import notifee, { AndroidImportance, AndroidVisibility } from './driver';
 
@@ -9,6 +10,7 @@ export const CH_DOSE_BARK = 'dose-bark-v1';
 export const CH_DOSE_QUIET = 'dose-quiet-v1';
 export const CH_WAIT = 'countdown-v1';
 export const CH_DONE = 'done-v1';
+export const CH_APPT = 'appointment-v1';
 
 /** Channels of the previous app version. */
 const OLD_CHANNELS = ['medication-alerts-v2', 'medication-alerts', 'expo_notifications_fallback_notification_channel'];
@@ -22,8 +24,8 @@ export const createChannels = async () => {
   if (Platform.OS !== 'android') return;
   await notifee.createChannel({
     id: CH_DOSE_BARK,
-    name: 'Ώρα για φάρμακο (γάβγισμα)',
-    description: 'Η ειδοποίηση για κάθε δόση, με γάβγισμα και δόνηση.',
+    name: t('Ώρα για φάρμακο (γάβγισμα)', 'Medicine time (bark)'),
+    description: t('Η ειδοποίηση για κάθε δόση, με γάβγισμα και δόνηση.', 'The reminder for each dose, with a bark and vibration.'),
     importance: AndroidImportance.HIGH,
     visibility: AndroidVisibility.PUBLIC,
     sound: 'bark',
@@ -34,8 +36,8 @@ export const createChannels = async () => {
   });
   await notifee.createChannel({
     id: CH_DOSE,
-    name: 'Ώρα για φάρμακο',
-    description: 'Η ειδοποίηση για κάθε δόση, με ήχο και δόνηση.',
+    name: t('Ώρα για φάρμακο', 'Medicine time'),
+    description: t('Η ειδοποίηση για κάθε δόση, με ήχο και δόνηση.', 'The reminder for each dose, with sound and vibration.'),
     importance: AndroidImportance.HIGH,
     visibility: AndroidVisibility.PUBLIC,
     sound: 'default',
@@ -46,27 +48,39 @@ export const createChannels = async () => {
   });
   await notifee.createChannel({
     id: CH_DOSE_QUIET,
-    name: 'Δόση σε αναμονή (αθόρυβα)',
-    description: 'Όταν σβήσεις μια ειδοποίηση χωρίς να απαντήσεις, ξαναεμφανίζεται εδώ χωρίς ήχο.',
+    name: t('Δόση σε αναμονή (αθόρυβα)', 'Dose waiting (silent)'),
+    description: t(
+      'Όταν σβήσεις μια ειδοποίηση χωρίς να απαντήσεις, ξαναεμφανίζεται εδώ χωρίς ήχο.',
+      'If you swipe a reminder away without answering, it comes back here without sound.',
+    ),
     importance: AndroidImportance.LOW,
     visibility: AndroidVisibility.PUBLIC,
     vibration: false,
   });
   await notifee.createChannel({
     id: CH_WAIT,
-    name: 'Αντίστροφη μέτρηση',
-    description: 'Δείχνει πόσο μένει μέχρι το επόμενο φάρμακο μιας σειράς.',
+    name: t('Αντίστροφη μέτρηση', 'Countdown'),
+    description: t('Δείχνει πόσο μένει μέχρι το επόμενο φάρμακο μιας σειράς.', 'Shows how long until the next medicine in a chain.'),
     importance: AndroidImportance.LOW,
     visibility: AndroidVisibility.PUBLIC,
     vibration: false,
   });
   await notifee.createChannel({
     id: CH_DONE,
-    name: 'Μπράβο',
-    description: 'Όταν δοθούν όλα τα φάρμακα της μέρας. Χωρίς ήχο.',
+    name: t('Μπράβο', 'Well done'),
+    description: t('Όταν δοθούν όλα τα φάρμακα της μέρας. Χωρίς ήχο.', 'When all of the day\'s medicines are given. No sound.'),
     importance: AndroidImportance.DEFAULT,
     visibility: AndroidVisibility.PUBLIC,
     vibration: false,
+  });
+  await notifee.createChannel({
+    id: CH_APPT,
+    name: t('Ραντεβού φυσικοθεραπείας', 'Physio appointments'),
+    description: t('Μία ώρα πριν από κάθε ραντεβού.', 'An hour before each appointment.'),
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+    sound: 'default',
+    vibration: true,
   });
 };
 

@@ -15,6 +15,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { t } from '../i18n';
 import { caps } from '../lib/text';
 import { kindInfo } from '../model/defaults';
 import { MedKind } from '../model/types';
@@ -236,7 +237,7 @@ export const Chip = ({
     >
       <Text style={[s.chipText, { color: selected ? '#fff' : c.text }]}>{label}</Text>
       {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={10} accessibilityLabel={`Αφαίρεση ${label}`}>
+        <Pressable onPress={onRemove} hitSlop={10} accessibilityLabel={t(`Αφαίρεση ${label}`, `Remove ${label}`)}>
           <Ionicons name="close" size={16} color={selected ? '#fff' : c.textSoft} />
         </Pressable>
       )}
@@ -355,7 +356,7 @@ export const Sheet = ({
           {!!title && (
             <View style={s.sheetHeader}>
               <Text style={[s.sheetTitle, { color: c.text }]}>{title}</Text>
-              <IconButton icon="close" onPress={onClose} label="Κλείσιμο" size={18} />
+              <IconButton icon="close" onPress={onClose} label={t('Κλείσιμο', 'Close')} size={18} />
             </View>
           )}
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>

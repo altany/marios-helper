@@ -57,6 +57,7 @@ export default function RootLayout() {
           <Stack.Screen name="routine/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="med/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="history" />
+          <Stack.Screen name="physio" />
         </Stack>
         <DosePrompt />
         <ToastHost />

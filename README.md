@@ -20,7 +20,9 @@ Meet Mario, my adorable furry friend who needs a bit of extra care! This app rem
 - **Συνταγή (Prescription)** – the medicines with dose and instructions, treatment start/end dates (no reminders after the end), the vet's phone and next check-up, and free notes.
 - **Ρυθμίσεις (Settings)** – pause, snooze time, repeat time, when a dose counts as missed, sticky on/off, countdown, alarm-like sound, plus a **check** of everything that can stop reminders from arriving (permissions, exact alarms, battery saving, phone-maker settings) with a button to fix each one, and a test notification.
 - **Ιστορικό (History)** – the last 30 days, and how many doses were given.
+- **Φυσικοθεραπεία (Physio)** – daily exercises at home: a card on Today with an "Έγινε" button, and a reminder at a set time if they aren't done yet ("Έγινε" and "Αργότερα 1 ώρα" also work from the notification and the watch). The last 4 weeks as paw prints, and how many days in a row. Visits to the physio with a note each, and a reminder an hour before. Open it from the card on Today or from Συνταγή.
 - **Backup** – export all data as text and restore it later.
+- **Greek and English** – the app follows the phone's language (a Greek phone gets Greek, any other gets English), and Ρυθμίσεις → Γλώσσα · Language can fix it to one. Reminders change language too. Every text is written in both languages in place, with `t('Σήμερα', 'Today')` from `src/i18n`.
 - Light and dark mode. Settings from the previous version are carried over on the first start, and the old "Οδηγίες" text is kept in the prescription notes.
 - Notification texts use plain words (no ✓ or ′ symbols) so they show correctly on a smartwatch.
 
@@ -44,7 +46,7 @@ One-time setup:
 ## How it works (for developers)
 
 - Expo SDK 57 (React Native 0.86, New Architecture) + expo-router. Notifications use [`react-native-notify-kit`](https://github.com/marcocrupi/react-native-notify-kit), the maintained fork of [Notifee](https://github.com/invertase/notifee) (archived in April 2026), with the same API. It is imported only in `src/notify/driver.ts`.
-- Instead of repeating alarms, the app works out the concrete doses ("runs") for the next 7 days from the routines (`src/engine/runs.ts`), and schedules one exact alarm per dose. Every change goes through `act()` (`src/notify/commands.ts`), which saves the data and then syncs the alarms with the plan (`src/engine/plan.ts`, `src/notify/sync.ts`). The 7 days are topped up every time the app opens or a notification fires.
+- Instead of repeating alarms, the app works out the concrete doses ("runs") for the next 7 days from the routines (`src/engine/runs.ts`), and schedules one exact alarm per dose. Physio (`src/engine/physio.ts`) adds one alarm per day for the exercises and one per visit. Every change goes through `act()` (`src/notify/commands.ts`), which saves the data and then syncs the alarms with the plan (`src/engine/plan.ts`, `src/notify/sync.ts`). The 7 days are topped up every time the app opens or a notification fires.
 - Notification buttons are handled in `src/notify/events.ts`. It is registered in `index.js` so it also runs when Android starts the app in the background.
 - All data is one JSON document in AsyncStorage (`src/store/store.ts`).
 - The engine is plain TypeScript with tests in `__tests__/`.
