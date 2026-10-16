@@ -10,6 +10,7 @@ export const CH_DOSE_BARK = 'dose-bark-v1';
 export const CH_DOSE_QUIET = 'dose-quiet-v1';
 export const CH_WAIT = 'countdown-v1';
 export const CH_DONE = 'done-v1';
+export const CH_APPT = 'appointment-v1';
 
 /** Channels of the previous app version. */
 const OLD_CHANNELS = ['medication-alerts-v2', 'medication-alerts', 'expo_notifications_fallback_notification_channel'];
@@ -71,6 +72,15 @@ export const createChannels = async () => {
     importance: AndroidImportance.DEFAULT,
     visibility: AndroidVisibility.PUBLIC,
     vibration: false,
+  });
+  await notifee.createChannel({
+    id: CH_APPT,
+    name: t('Ραντεβού φυσικοθεραπείας', 'Physio appointments'),
+    description: t('Μία ώρα πριν από κάθε ραντεβού.', 'An hour before each appointment.'),
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+    sound: 'default',
+    vibration: true,
   });
 };
 

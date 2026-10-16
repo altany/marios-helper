@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import { AppData, MedKind, Settings } from './types';
+import { AppData, MedKind, Physio, Settings } from './types';
 
 export const MED_COLORS = ['#2f8f9d', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#64748b'];
 
@@ -28,6 +28,8 @@ export const DEFAULT_SETTINGS: Settings = {
   language: 'auto',
 };
 
+export const defaultPhysio = (): Physio => ({ daily: false, time: '18:00', done: {}, snoozed: {}, appointments: [] });
+
 /** A fresh install (or "Σβήσιμο όλων") starts empty: medicines are added from the app. */
 export const defaultData = (): AppData => ({
   version: 3,
@@ -36,5 +38,6 @@ export const defaultData = (): AppData => ({
   runs: {},
   settings: { ...DEFAULT_SETTINGS, petName: t('Μάριο', 'Mario') },
   prescription: { vetName: '', vetPhone: '', notes: '' },
+  physio: defaultPhysio(),
   dismissed: {},
 });

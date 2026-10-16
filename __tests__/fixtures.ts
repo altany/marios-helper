@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, MED_COLORS } from '../src/model/defaults';
+import { DEFAULT_SETTINGS, defaultPhysio, MED_COLORS } from '../src/model/defaults';
 import { AppData } from '../src/model/types';
 
 /** Sample schedule for tests (Mario's medicines in October 2026). */
@@ -65,5 +65,6 @@ export const sampleData = (now: number): AppData => ({
   runs: {},
   settings: { ...DEFAULT_SETTINGS, language: 'el' },
   prescription: { vetName: '', vetPhone: '', notes: '' },
+  physio: defaultPhysio(),
   dismissed: {},
 });

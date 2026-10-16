@@ -1,5 +1,6 @@
 import { addDays, dateKey } from '../lib/time';
 import { AppData, Medication, Routine, RunRecord } from '../model/types';
+import { prunePhysio } from './physio';
 import { buildRun, emptyRecord, runsForDay, stepsFor } from './runs';
 
 // Changes to the data. Each function edits a draft copy (see store.update).
@@ -121,7 +122,7 @@ export const deleteMed = (data: AppData, id: string) => {
   }
 };
 
-/** Drops history older than `keepDays` and stale swipe records. */
+/** Drops history older than `keepDays` and stale swipe records (physio keeps its own, longer). */
 export const prune = (data: AppData, now: number, keepDays = 120) => {
   const oldest = addDays(dateKey(now), -keepDays);
   for (const [id, rec] of Object.entries(data.runs)) {
@@ -130,6 +131,7 @@ export const prune = (data: AppData, now: number, keepDays = 120) => {
   for (const [id, at] of Object.entries(data.dismissed)) {
     if (now - at > 2 * 24 * 3600_000) delete data.dismissed[id];
   }
+  prunePhysio(data, now);
 };
 
 /** Is this step the one the user can act on now (or ahead of time)? */

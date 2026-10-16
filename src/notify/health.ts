@@ -4,7 +4,14 @@ import { t } from '../i18n';
 import { getData } from '../store/store';
 import { ACCENT } from '../ui/theme';
 import { cleanupOldVersion, createChannels, doseChannel } from './channels';
-import { ACTION_GIVE, ACTION_SNOOZE, IOS_CATEGORY } from './content';
+import {
+  ACTION_GIVE,
+  ACTION_PHYSIO_DONE,
+  ACTION_PHYSIO_LATER,
+  ACTION_SNOOZE,
+  IOS_CATEGORY,
+  IOS_CATEGORY_PHYSIO,
+} from './content';
 import notifee, {
   AndroidCategory,
   AndroidImportance,
@@ -33,6 +40,13 @@ export const setupNotifications = async () => {
         actions: [
           { id: ACTION_GIVE, title: t('Το έδωσα', 'I gave it') },
           { id: ACTION_SNOOZE, title: t('Αργότερα', 'Later') },
+        ],
+      },
+      {
+        id: IOS_CATEGORY_PHYSIO,
+        actions: [
+          { id: ACTION_PHYSIO_DONE, title: t('Έγινε', 'Done') },
+          { id: ACTION_PHYSIO_LATER, title: t('Αργότερα', 'Later') },
         ],
       },
     ]);
