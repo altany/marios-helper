@@ -21,6 +21,7 @@ Meet Mario, my adorable furry friend who needs a bit of extra care! This app rem
 - **Ρυθμίσεις (Settings)** – pause, snooze time, repeat time, when a dose counts as missed, sticky on/off, countdown, alarm-like sound, plus a **check** of everything that can stop reminders from arriving (permissions, exact alarms, battery saving, phone-maker settings) with a button to fix each one, and a test notification.
 - **Ιστορικό (History)** – the last 30 days, and how many doses were given.
 - **Backup** – export all data as text and restore it later.
+- **Greek and English** – the app follows the phone's language (a Greek phone gets Greek, any other gets English), and Ρυθμίσεις → Γλώσσα · Language can fix it to one. Reminders change language too. Every text is written in both languages in place, with `t('Σήμερα', 'Today')` from `src/i18n`.
 - Light and dark mode. Settings from the previous version are carried over on the first start, and the old "Οδηγίες" text is kept in the prescription notes.
 - Notification texts use plain words (no ✓ or ′ symbols) so they show correctly on a smartwatch.
 

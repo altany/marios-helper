@@ -1,6 +1,7 @@
 import * as Updates from 'expo-updates';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import { t } from './i18n';
 import { formatDate, dateKey, toHHMM } from './lib/time';
 
 // New versions arrive over the air (EAS Update). Expo checks when the app
@@ -37,9 +38,9 @@ export const useUpdateReady = () => {
 
 export const restartWithUpdate = () => Updates.reloadAsync();
 
-/** e.g. "ενημέρωση Δευτέρα 12 Οκτ 14:30", or null when running the installed version. */
+/** e.g. "ενημέρωση Δευτέρα 12 Οκτ 14:30" (update Monday 12 Oct 14:30), or null when running the installed version. */
 export const updateLabel = (): string | null => {
   if (!Updates.isEnabled || Updates.isEmbeddedLaunch || !Updates.createdAt) return null;
-  const t = Updates.createdAt.getTime();
-  return `ενημέρωση ${formatDate(dateKey(t))} ${toHHMM(t)}`;
+  const at = Updates.createdAt.getTime();
+  return t(`ενημέρωση ${formatDate(dateKey(at))} ${toHHMM(at)}`, `update ${formatDate(dateKey(at))} ${toHHMM(at)}`);
 };

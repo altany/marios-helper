@@ -38,9 +38,9 @@ const chainDepthAt = (s: V2Schedule, hour: number): number => {
 
 /**
  * Turns the old per-medicine schedule into medicines + routines. Hours that ran
- * a different part of the chain become separate routines, e.g. Hylogel at 9/15/21
- * with Lacrimmune only after 9 and 21 → "Hylogel → Lacrimmune" at 09:00, 21:00
- * and "Hylogel" at 15:00.
+ * a different part of the chain become separate routines, e.g. Blinkdrops at 9/15/21
+ * with Tearshield only after 9 and 21 → "Blinkdrops → Tearshield" at 09:00, 21:00
+ * and "Blinkdrops" at 15:00.
  */
 export const migrateV2 = (old: V2Schedule[], now: number): AppData => {
   const meds: Medication[] = [];

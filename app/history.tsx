@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { listRuns, RunView } from '../src/engine/runs';
-import { addDays, dateKey, DAY_SHORT, daysBetween, MONTHS_SHORT, parseDateKey, relativeDay } from '../src/lib/time';
+import { t } from '../src/i18n';
+import { addDays, dateKey, dayShort, daysBetween, monthsShort, parseDateKey, relativeDay } from '../src/lib/time';
 import { useData } from '../src/store/store';
 import { Card, IconButton, Loading, s, Screen, SectionTitle, useNow } from '../src/ui/components';
 import { Colors, useColors } from '../src/ui/theme';
@@ -12,7 +13,7 @@ const DAYS = 30;
 const dayLabel = (day: string, today: string) => {
   if (Math.abs(daysBetween(today, day)) <= 1) return relativeDay(day, today);
   const d = parseDateKey(day);
-  return `${DAY_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  return `${dayShort()[d.getDay()]} ${d.getDate()} ${monthsShort()[d.getMonth()]}`;
 };
 
 const dotColor = (status: RunView['status'], c: Colors) =>
@@ -39,19 +40,22 @@ export default function History() {
   const month = pct(runs);
 
   return (
-    <Screen title="Ιστορικό" right={<IconButton icon="close" label="Κλείσιμο" onPress={() => router.back()} />}>
+    <Screen
+      title={t('Ιστορικό', 'History')}
+      right={<IconButton icon="close" label={t('Κλείσιμο', 'Close')} onPress={() => router.back()} />}
+    >
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <Card style={{ flex: 1, alignItems: 'center' }}>
           <Text style={[st.big, { color: c.text }]}>{week == null ? '—' : `${week}%`}</Text>
-          <Text style={[s.hint, { color: c.textSoft }]}>δόσεις · 7 μέρες</Text>
+          <Text style={[s.hint, { color: c.textSoft }]}>{t('δόσεις · 7 μέρες', 'doses · 7 days')}</Text>
         </Card>
         <Card style={{ flex: 1, alignItems: 'center' }}>
           <Text style={[st.big, { color: c.text }]}>{month == null ? '—' : `${month}%`}</Text>
-          <Text style={[s.hint, { color: c.textSoft }]}>δόσεις · 30 μέρες</Text>
+          <Text style={[s.hint, { color: c.textSoft }]}>{t('δόσεις · 30 μέρες', 'doses · 30 days')}</Text>
         </Card>
       </View>
 
-      <SectionTitle>Ανά μέρα</SectionTitle>
+      <SectionTitle>{t('Ανά μέρα', 'By day')}</SectionTitle>
       <Card style={{ gap: 0, paddingVertical: 4 }}>
         {Array.from({ length: DAYS }, (_, i) => addDays(today, -i)).map((day, i) => {
           const list = byDay.get(day) ?? [];
@@ -81,7 +85,10 @@ export default function History() {
         })}
       </Card>
       <Text style={[s.hint, { color: c.textMuted, textAlign: 'center' }]}>
-        Πράσινο: δόθηκε · Κόκκινο: δεν καταγράφηκε · Γκρι: παράλειψη
+        {t(
+          'Πράσινο: δόθηκε · Κόκκινο: δεν καταγράφηκε · Γκρι: παράλειψη',
+          'Green: given · Red: not recorded · Grey: skipped',
+        )}
       </Text>
     </Screen>
   );

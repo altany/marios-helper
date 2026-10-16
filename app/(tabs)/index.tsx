@@ -4,12 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { shiftDay } from '../../src/engine/actions';
 import { dueSteps, nextUpcoming, RunView, runsForDay, StepView } from '../../src/engine/runs';
+import { t } from '../../src/i18n';
 import {
   addDays,
   dateKey,
   formatDate,
   formatFromNow,
   formatMinutes,
+  formatMinutesShort,
   MINUTE,
   relativeDay,
   toHHMM,
@@ -76,7 +78,7 @@ export default function TodayScreen() {
         subtitle={formatDate(date)}
         right={
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <IconButton icon="stats-chart-outline" label="Ιστορικό" onPress={() => router.push('/history')} />
+            <IconButton icon="stats-chart-outline" label={t('Ιστορικό', 'History')} onPress={() => router.push('/history')} />
             <Image
               source={require('../../assets/images/mario-avatar.png')}
               style={[st.avatar, { borderColor: c.bandana }]}
@@ -86,14 +88,17 @@ export default function TodayScreen() {
       >
         {updateReady && (
           <Card style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
-            <Text style={[st.progressText, { color: c.text }]}>Υπάρχει νέα έκδοση</Text>
+            <Text style={[st.progressText, { color: c.text }]}>{t('Υπάρχει νέα έκδοση', "There's a new version")}</Text>
             <Text style={[s.hint, { color: c.textSoft }]}>
-              Κατέβηκε ήδη. Πάτα για να ξεκινήσει η εφαρμογή με τη νέα έκδοση.
+              {t(
+                'Κατέβηκε ήδη. Πάτα για να ξεκινήσει η εφαρμογή με τη νέα έκδοση.',
+                "It's already downloaded. Tap to restart the app with the new version.",
+              )}
             </Text>
             <Button
               small
               kind="primary"
-              label="Επανεκκίνηση"
+              label={t('Επανεκκίνηση', 'Restart')}
               icon="refresh"
               style={{ alignSelf: 'flex-start' }}
               onPress={restartWithUpdate}
@@ -103,14 +108,16 @@ export default function TodayScreen() {
 
         {data.settings.paused && (
           <Card style={{ backgroundColor: c.warnSoft, borderColor: 'transparent' }}>
-            <Text style={[st.progressText, { color: c.text }]}>Οι ειδοποιήσεις είναι σε παύση</Text>
+            <Text style={[st.progressText, { color: c.text }]}>
+              {t('Οι ειδοποιήσεις είναι σε παύση', 'Reminders are paused')}
+            </Text>
             <Text style={[s.hint, { color: c.textSoft }]}>
-              Δεν θα έρθει καμία ειδοποίηση μέχρι να τις ενεργοποιήσεις.
+              {t('Δεν θα έρθει καμία ειδοποίηση μέχρι να τις ενεργοποιήσεις.', 'No reminders will come until you turn them on.')}
             </Text>
             <Button
               small
               kind="primary"
-              label="Ενεργοποίηση"
+              label={t('Ενεργοποίηση', 'Turn on')}
               icon="notifications-outline"
               style={{ alignSelf: 'flex-start' }}
               onPress={() =>
@@ -123,24 +130,26 @@ export default function TodayScreen() {
         )}
 
         <View style={st.dayNav}>
-          <IconButton icon="chevron-back" label="Προηγούμενη μέρα" onPress={() => setDate(addDays(date, -1))} />
+          <IconButton icon="chevron-back" label={t('Προηγούμενη μέρα', 'Previous day')} onPress={() => setDate(addDays(date, -1))} />
           <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-            {!isToday && <Chip label="Σήμερα" onPress={() => setDate(today)} />}
-            {isToday && <Chip label="Αύριο" onPress={() => setDate(addDays(today, 1))} />}
+            {!isToday && <Chip label={t('Σήμερα', 'Today')} onPress={() => setDate(today)} />}
+            {isToday && <Chip label={t('Αύριο', 'Tomorrow')} onPress={() => setDate(addDays(today, 1))} />}
           </View>
-          <IconButton icon="chevron-forward" label="Επόμενη μέρα" onPress={() => setDate(addDays(date, 1))} />
+          <IconButton icon="chevron-forward" label={t('Επόμενη μέρα', 'Next day')} onPress={() => setDate(addDays(date, 1))} />
         </View>
 
         {total > 0 && (isToday || isPast) && (
           <Card style={{ gap: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={[st.progressText, { color: c.text }]}>
-                Δόθηκαν {given} από {total}
+                {t(`Δόθηκαν ${given} από ${total}`, `Given ${given} of ${total}`)}
               </Text>
               {given === total && (
                 <View style={st.bravo}>
                   <MaterialCommunityIcons name="bone" size={18} color={c.success} />
-                  <Text style={[st.bravoText, { color: c.success }]}>Μπράβο {data.settings.petName}!</Text>
+                  <Text style={[st.bravoText, { color: c.success }]}>
+                    {t(`Μπράβο ${data.settings.petName}!`, `Well done, ${data.settings.petName}!`)}
+                  </Text>
                 </View>
               )}
             </View>
@@ -161,21 +170,31 @@ export default function TodayScreen() {
 
         {next && <NextCard run={next.run} step={next.step} now={now} onPress={() => setOpenRun(next.run.id)} />}
 
-        <SectionTitle>{isPast ? 'Τι δόθηκε' : 'Πρόγραμμα ημέρας'}</SectionTitle>
+        <SectionTitle>{isPast ? t('Τι δόθηκε', 'What was given') : t('Πρόγραμμα ημέρας', "The day's schedule")}</SectionTitle>
         {data.routines.length === 0 ? (
           <Card>
             <EmptyState
               dog="dog-side"
-              text="Δεν υπάρχει ακόμα πρόγραμμα. Ξεκίνα με μια ρουτίνα: ποιο φάρμακο και τι ώρες."
+              text={t(
+                'Δεν υπάρχει ακόμα πρόγραμμα. Ξεκίνα με μια ρουτίνα: ποιο φάρμακο και τι ώρες.',
+                'No schedule yet. Start with a routine: which medicine, and at what times.',
+              )}
             />
-            <Button label="Νέα ρουτίνα" kind="primary" icon="add" onPress={() => router.push('/routine/new')} />
+            <Button
+              label={t('Νέα ρουτίνα', 'New routine')}
+              kind="primary"
+              icon="add"
+              onPress={() => router.push('/routine/new')}
+            />
           </Card>
         ) : runs.length === 0 ? (
           <Card>
             <EmptyState
               dog={isPast ? 'dog-side' : 'bone'}
               text={
-                isPast ? 'Δεν υπάρχει τίποτα καταγεγραμμένο.' : 'Κανένα φάρμακο αυτή τη μέρα. Μόνο βόλτες και κόκαλα!'
+                isPast
+                  ? t('Δεν υπάρχει τίποτα καταγεγραμμένο.', 'Nothing recorded.')
+                  : t('Κανένα φάρμακο αυτή τη μέρα. Μόνο βόλτες και κόκαλα!', 'No medicines this day. Just walks and bones!')
               }
             />
           </Card>
@@ -185,7 +204,7 @@ export default function TodayScreen() {
 
         {!isPast && pending > 0 && (
           <Button
-            label="Αλλαγή ώρας για όλη τη μέρα"
+            label={t('Αλλαγή ώρας για όλη τη μέρα', 'Move the whole day')}
             kind="ghost"
             icon="swap-vertical"
             onPress={() => setShiftOpen(true)}
@@ -193,17 +212,26 @@ export default function TodayScreen() {
         )}
         {runs.length > 0 && (
           <Text style={[s.hint, { color: c.textMuted, textAlign: 'center' }]}>
-            Πάτα μια δόση για να αλλάξεις την ώρα της, να την παραλείψεις ή να τη σημειώσεις.
+            {t(
+              'Πάτα μια δόση για να αλλάξεις την ώρα της, να την παραλείψεις ή να τη σημειώσεις.',
+              'Tap a dose to change its time, skip it or mark it as given.',
+            )}
           </Text>
         )}
       </Screen>
 
       <RunSheet runId={openRun} onClose={() => setOpenRun(null)} />
 
-      <Sheet visible={shiftOpen} onClose={() => setShiftOpen(false)} title="Αλλαγή ώρας για όλη τη μέρα">
+      <Sheet
+        visible={shiftOpen}
+        onClose={() => setShiftOpen(false)}
+        title={t('Αλλαγή ώρας για όλη τη μέρα', 'Move the whole day')}
+      >
         <Text style={[s.hint, { color: c.textSoft }]}>
-          Μετακινεί όλες τις δόσεις της {relativeDay(date, today).toLowerCase()} που δεν έχουν ξεκινήσει ακόμα. Οι άλλες
-          μέρες δεν αλλάζουν.
+          {t(
+            `Μετακινεί όλες τις δόσεις της ${relativeDay(date, today).toLowerCase()} που δεν έχουν ξεκινήσει ακόμα. Οι άλλες μέρες δεν αλλάζουν.`,
+            `Moves every dose ${date === today ? 'today' : date === addDays(today, 1) ? 'tomorrow' : `on ${formatDate(date)}`} that hasn't started yet. Other days stay the same.`,
+          )}
         </Text>
         <View style={s.wrap}>
           {[-60, -30, -15, 15, 30, 60, 90, 120].map(min => (
@@ -212,7 +240,12 @@ export default function TodayScreen() {
               label={`${min > 0 ? '+' : '−'}${formatMinutes(Math.abs(min))}`}
               onPress={async () => {
                 await act(d => shiftDay(d, date, min, Date.now()));
-                toast(`Όλες οι δόσεις: ${min > 0 ? '+' : '−'}${formatMinutes(Math.abs(min))}`);
+                toast(
+                  t(
+                    `Όλες οι δόσεις: ${min > 0 ? '+' : '−'}${formatMinutes(Math.abs(min))}`,
+                    `All doses: ${min > 0 ? '+' : '−'}${formatMinutes(Math.abs(min))}`,
+                  ),
+                );
                 setShiftOpen(false);
               }}
             />
@@ -244,7 +277,12 @@ const DueCard = ({
       <View style={st.dueHead}>
         <Ionicons name="notifications" size={16} color={c.warn} />
         <Text style={[st.dueKicker, { color: c.warn }]}>
-          {caps(`Τώρα · ${toHHMM(step.dueAt)}${late >= 2 ? ` · καθυστέρηση ${formatMinutes(late)}` : ''}`)}
+          {caps(
+            t(
+              `Τώρα · ${toHHMM(step.dueAt)}${late >= 2 ? ` · καθυστέρηση ${formatMinutes(late)}` : ''}`,
+              `Now · ${toHHMM(step.dueAt)}${late >= 2 ? ` · ${formatMinutes(late)} late` : ''}`,
+            ),
+          )}
         </Text>
       </View>
       <View style={st.dueMed}>
@@ -259,24 +297,33 @@ const DueCard = ({
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Button
           style={{ flex: 2 }}
-          label="Το έδωσα"
+          label={t('Το έδωσα', 'I gave it')}
           kind="success"
           icon="paw"
           onPress={async () => {
             await giveStep(run.id, step.index);
-            toast(`${step.name}: δόθηκε`);
+            toast(t(`${step.name}: δόθηκε`, `${step.name}: given`));
           }}
         />
         <Button
           style={{ flex: 1 }}
-          label={formatMinutes(snoozeMin)}
+          label={formatMinutesShort(snoozeMin)}
           icon="alarm-outline"
           onPress={async () => {
             await snoozeStepFor(run.id, step.index, snoozeMin);
-            toast(`Υπενθύμιση στις ${toHHMM(Date.now() + snoozeMin * MINUTE)}`);
+            toast(
+              t(
+                `Υπενθύμιση στις ${toHHMM(Date.now() + snoozeMin * MINUTE)}`,
+                `Reminder at ${toHHMM(Date.now() + snoozeMin * MINUTE)}`,
+              ),
+            );
           }}
         />
-        <Pressable onPress={onMore} accessibilityLabel="Περισσότερα" style={[st.more, { backgroundColor: c.input }]}>
+        <Pressable
+          onPress={onMore}
+          accessibilityLabel={t('Περισσότερα', 'More')}
+          style={[st.more, { backgroundColor: c.input }]}
+        >
           <Ionicons name="ellipsis-horizontal" size={20} color={c.text} />
         </Pressable>
       </View>
@@ -322,15 +369,17 @@ const NextCard = ({ run, step, now, onPress }: { run: RunView; step: StepView; n
   return (
     <Card onPress={onPress} style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
       <Text style={[st.dueKicker, { color: c.accentText }]}>
-        {caps(chainWait ? `Μετά το ${prev.name}` : 'Επόμενο')}
+        {caps(chainWait ? t(`Μετά το ${prev.name}`, `After ${prev.name}`) : t('Επόμενο', 'Next'))}
       </Text>
       <View style={st.dueMed}>
         <MedIcon kind={step.med?.kind} color={step.med?.color} size={44} />
         <View style={{ flex: 1 }}>
           <Text style={[st.nextName, { color: c.text }]}>{step.name}</Text>
           <Text style={[s.hint, { color: c.textSoft }]}>
-            {relativeDay(dateKey(step.dueAt), dateKey(now))} στις {toHHMM(step.dueAt)} ·{' '}
-            {formatFromNow(step.dueAt, now)}
+            {t(
+              `${relativeDay(dateKey(step.dueAt), dateKey(now))} στις ${toHHMM(step.dueAt)} · ${formatFromNow(step.dueAt, now)}`,
+              `${relativeDay(dateKey(step.dueAt), dateKey(now))} at ${toHHMM(step.dueAt)} · ${formatFromNow(step.dueAt, now)}`,
+            )}
           </Text>
         </View>
         <Text style={[st.nextTime, { color: c.accentText }]}>{toHHMM(step.dueAt)}</Text>
@@ -338,11 +387,11 @@ const NextCard = ({ run, step, now, onPress }: { run: RunView; step: StepView; n
       {chainWait && (
         <Button
           small
-          label="Το έδωσα ήδη"
+          label={t('Το έδωσα ήδη', 'Already gave it')}
           icon="paw"
           onPress={async () => {
             await giveStep(run.id, step.index);
-            toast(`${step.name}: δόθηκε`);
+            toast(t(`${step.name}: δόθηκε`, `${step.name}: given`));
           }}
         />
       )}

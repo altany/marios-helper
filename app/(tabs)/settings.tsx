@@ -4,9 +4,11 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, AppState, Platform, Share, Text, View } from 'react-native';
 import { MAX_REPEATS } from '../../src/engine/plan';
+import { t } from '../../src/i18n';
 import { formatMinutes } from '../../src/lib/time';
 import { defaultData } from '../../src/model/defaults';
 import { AppData, Settings } from '../../src/model/types';
+import { createChannels } from '../../src/notify/channels';
 import { act } from '../../src/notify/commands';
 import { Check, runChecks, sendTestNotification } from '../../src/notify/health';
 import { syncNotifications } from '../../src/notify/sync';
@@ -56,6 +58,12 @@ export default function SettingsScreen() {
       d.settings = { ...d.settings, ...patch };
     });
 
+  // Channel names (in the phone's notification settings) follow the language too.
+  const setLanguage = async (language: Settings['language']) => {
+    await set({ language });
+    await createChannels();
+  };
+
   const exportData = async () => {
     const json = JSON.stringify(await getData(), null, 1);
     await Share.share({ title: 'Mario backup', message: json });
@@ -69,102 +77,138 @@ export default function SettingsScreen() {
       await syncNotifications();
       setImportOpen(false);
       setImportText('');
-      toast('Τα δεδομένα επανήλθαν');
+      toast(t('Τα δεδομένα επανήλθαν', 'Your data is back'));
     } catch {
-      Alert.alert('Δεν έγινε', 'Το κείμενο δεν είναι αντίγραφο ασφαλείας αυτής της εφαρμογής.');
+      Alert.alert(
+        t('Δεν έγινε', "That didn't work"),
+        t('Το κείμενο δεν είναι αντίγραφο ασφαλείας αυτής της εφαρμογής.', "The text isn't a backup from this app."),
+      );
     }
   };
 
   const resetAll = () =>
-    Alert.alert('Επαναφορά', 'Να σβηστούν όλα (φάρμακα, πρόγραμμα, ιστορικό) και να ξεκινήσεις από την αρχή;', [
-      { text: 'Άκυρο', style: 'cancel' },
-      {
-        text: 'Σβήσιμο όλων',
-        style: 'destructive',
-        onPress: async () => {
-          await replaceAll(defaultData());
-          await syncNotifications();
-          toast('Έγινε επαναφορά');
+    Alert.alert(
+      t('Επαναφορά', 'Reset'),
+      t(
+        'Να σβηστούν όλα (φάρμακα, πρόγραμμα, ιστορικό) και να ξεκινήσεις από την αρχή;',
+        'Delete everything (medicines, schedule, history) and start again?',
+      ),
+      [
+        { text: t('Άκυρο', 'Cancel'), style: 'cancel' },
+        {
+          text: t('Σβήσιμο όλων', 'Delete everything'),
+          style: 'destructive',
+          onPress: async () => {
+            await replaceAll(defaultData());
+            await syncNotifications();
+            toast(t('Έγινε επαναφορά', 'Everything was reset'));
+          },
         },
-      },
-    ]);
+      ],
+    );
 
   const problems = checks?.filter(ch => ch.ok === false).length ?? 0;
 
   return (
-    <Screen title="Ρυθμίσεις">
-      <SectionTitle>Ειδοποιήσεις</SectionTitle>
+    <Screen title={t('Ρυθμίσεις', 'Settings')}>
+      <SectionTitle>{t('Ειδοποιήσεις', 'Reminders')}</SectionTitle>
       <Card style={{ gap: 14 }}>
         <SwitchRow
-          label="Ειδοποιήσεις ενεργές"
+          label={t('Ειδοποιήσεις ενεργές', 'Reminders on')}
           hint={
             data.settings.paused
-              ? 'Σε παύση: δεν έρχεται καμία ειδοποίηση. Το πρόγραμμα μένει όπως είναι.'
-              : "Κλείσ' το για παύση όλων (π.χ. όταν ο " + data.settings.petName + ' μένει στον κτηνίατρο).'
+              ? t(
+                  'Σε παύση: δεν έρχεται καμία ειδοποίηση. Το πρόγραμμα μένει όπως είναι.',
+                  'Paused: no reminders come. The schedule stays as it is.',
+                )
+              : t(
+                  "Κλείσ' το για παύση όλων (π.χ. όταν ο " + data.settings.petName + ' μένει στον κτηνίατρο).',
+                  'Turn it off to pause them all (e.g. when ' + data.settings.petName + ' is staying at the vet).',
+                )
           }
           value={!data.settings.paused}
           onChange={on => set({ paused: !on })}
         />
         <Divider />
         <Field
-          label="Όνομα κατοικιδίου"
+          label={t('Όνομα κατοικιδίου', "Pet's name")}
           defaultValue={data.settings.petName}
           onEndEditing={e => {
             const petName = e.nativeEvent.text.trim();
             if (petName && petName !== data.settings.petName) set({ petName });
           }}
-          hint="Φαίνεται στον τίτλο κάθε ειδοποίησης."
+          hint={t('Φαίνεται στον τίτλο κάθε ειδοποίησης.', 'Shown in the title of every reminder.')}
         />
         <Divider />
-        <Text style={[s.label, { color: c.textSoft }]}>Κουμπί «Αργότερα» στην ειδοποίηση</Text>
+        <Text style={[s.label, { color: c.textSoft }]}>
+          {t('Κουμπί «Αργότερα» στην ειδοποίηση', '"Later" button on the reminder')}
+        </Text>
         <Choice
           options={minutes([5, 10, 15, 20, 30, 60])}
           value={data.settings.snoozeMin}
           onChange={snoozeMin => set({ snoozeMin })}
         />
         <Divider />
-        <Text style={[s.label, { color: c.textSoft }]}>Ξαναχτυπάει αν δεν απαντήσω κάθε</Text>
+        <Text style={[s.label, { color: c.textSoft }]}>
+          {t('Ξαναχτυπάει αν δεν απαντήσω κάθε', "If I don't answer, ring again every")}
+        </Text>
         <Choice
-          options={minutes([0, 5, 10, 15, 30], 'Ποτέ')}
+          options={minutes([0, 5, 10, 15, 30], t('Ποτέ', 'Never'))}
           value={data.settings.repeatMin}
           onChange={repeatMin => set({ repeatMin })}
         />
         <Text style={[s.hint, { color: c.textMuted }]}>
-          Έως {MAX_REPEATS} φορές. Μετά μένει στις ειδοποιήσεις χωρίς ήχο, μέχρι να πατήσεις κουμπί.
+          {t(
+            `Έως ${MAX_REPEATS} φορές. Μετά μένει στις ειδοποιήσεις χωρίς ήχο, μέχρι να πατήσεις κουμπί.`,
+            `Up to ${MAX_REPEATS} times. Then it stays in the notifications without sound, until you tap a button.`,
+          )}
         </Text>
         <Divider />
-        <Text style={[s.label, { color: c.textSoft }]}>Η δόση θεωρείται χαμένη μετά από</Text>
+        <Text style={[s.label, { color: c.textSoft }]}>
+          {t('Η δόση θεωρείται χαμένη μετά από', 'A dose counts as missed after')}
+        </Text>
         <Choice
           options={minutes([120, 240, 360, 720, 1440])}
           value={data.settings.missAfterMin}
           onChange={missAfterMin => set({ missAfterMin })}
         />
         <Text style={[s.hint, { color: c.textMuted }]}>
-          Μέχρι τότε η ειδοποίηση μένει μέχρι να πατήσεις «Το έδωσα» ή «Αργότερα». Μετά φεύγει μόνη της. Μπορείς πάντα
-          να σημειώσεις τη δόση από την οθόνη «Σήμερα».
+          {t(
+            'Μέχρι τότε η ειδοποίηση μένει μέχρι να πατήσεις «Το έδωσα» ή «Αργότερα». Μετά φεύγει μόνη της. Μπορείς πάντα να σημειώσεις τη δόση από την οθόνη «Σήμερα».',
+            'Until then the reminder stays until you tap "I gave it" or "Later". After that it goes away by itself. You can always mark the dose on the Today screen.',
+          )}
         </Text>
         <Divider />
         <SwitchRow
-          label="Δεν σβήνει με σύρσιμο"
-          hint="Αν τη σύρεις χωρίς να απαντήσεις, ξαναεμφανίζεται αθόρυβα."
+          label={t('Δεν σβήνει με σύρσιμο', "Can't be swiped away")}
+          hint={t('Αν τη σύρεις χωρίς να απαντήσεις, ξαναεμφανίζεται αθόρυβα.', 'If you swipe it away without answering, it comes back silently.')}
           value={data.settings.sticky}
           onChange={sticky => set({ sticky })}
         />
         <SwitchRow
-          label="Αντίστροφη μέτρηση"
-          hint="Μετά το «Το έδωσα» δείχνει πόσο μένει για το επόμενο φάρμακο της σειράς."
+          label={t('Αντίστροφη μέτρηση', 'Countdown')}
+          hint={t(
+            'Μετά το «Το έδωσα» δείχνει πόσο μένει για το επόμενο φάρμακο της σειράς.',
+            'After "I gave it", shows how long until the next medicine in the chain.',
+          )}
           value={data.settings.countdown}
           onChange={countdown => set({ countdown })}
         />
         <SwitchRow
-          label="Γάβγισμα"
-          hint="Η ειδοποίηση για κάθε δόση γαβγίζει αντί για τον συνηθισμένο ήχο του κινητού."
+          label={t('Γάβγισμα', 'Bark')}
+          hint={t(
+            'Η ειδοποίηση για κάθε δόση γαβγίζει αντί για τον συνηθισμένο ήχο του κινητού.',
+            "The reminder for each dose barks instead of the phone's usual sound.",
+          )}
           value={data.settings.bark}
           onChange={bark => set({ bark })}
         />
         <SwitchRow
-          label="Επίμονος ήχος"
-          hint="Ο ήχος επαναλαμβάνεται μέχρι να δεις την ειδοποίηση. Σαν ξυπνητήρι."
+          label={t('Επίμονος ήχος', 'Keep ringing')}
+          hint={t(
+            'Ο ήχος επαναλαμβάνεται μέχρι να δεις την ειδοποίηση. Σαν ξυπνητήρι.',
+            'The sound repeats until you look at the reminder. Like an alarm clock.',
+          )}
           value={data.settings.insistent}
           onChange={insistent => set({ insistent })}
         />
@@ -173,11 +217,17 @@ export default function SettingsScreen() {
       {Platform.OS !== 'web' && (
         <>
           <SectionTitle>
-            Έλεγχος {problems > 0 ? `· ${problems} ${problems === 1 ? 'θέμα' : 'θέματα'}` : ''}
+            {t('Έλεγχος', 'Check')}{' '}
+            {problems > 0
+              ? t(`· ${problems} ${problems === 1 ? 'θέμα' : 'θέματα'}`, `· ${problems} ${problems === 1 ? 'issue' : 'issues'}`)
+              : ''}
           </SectionTitle>
           <Card style={{ gap: 14 }}>
             <Text style={[s.hint, { color: c.textSoft }]}>
-              Για να έρχονται οι ειδοποιήσεις στην ώρα τους, ακόμα κι όταν η εφαρμογή είναι κλειστή.
+              {t(
+                'Για να έρχονται οι ειδοποιήσεις στην ώρα τους, ακόμα κι όταν η εφαρμογή είναι κλειστή.',
+                'So that reminders come on time, even when the app is closed.',
+              )}
             </Text>
             {checks?.map(ch => (
               <View key={ch.key} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
@@ -193,7 +243,7 @@ export default function SettingsScreen() {
                     <Button
                       small
                       kind={ch.ok === false ? 'primary' : 'ghost'}
-                      label={ch.fixLabel ?? 'Άνοιγμα'}
+                      label={ch.fixLabel ?? t('Άνοιγμα', 'Open')}
                       style={{ alignSelf: 'flex-start' }}
                       onPress={async () => {
                         await ch.fix!();
@@ -205,44 +255,83 @@ export default function SettingsScreen() {
               </View>
             ))}
             <Button
-              label="Δοκιμαστική ειδοποίηση σε 5″"
+              label={t('Δοκιμαστική ειδοποίηση σε 5″', 'Test reminder in 5 seconds')}
               icon="notifications-outline"
               onPress={async () => {
                 await sendTestNotification(5);
-                toast('Κλείσε την εφαρμογή και περίμενε 5 δευτερόλεπτα');
+                toast(t('Κλείσε την εφαρμογή και περίμενε 5 δευτερόλεπτα', 'Close the app and wait 5 seconds'));
               }}
             />
           </Card>
         </>
       )}
 
-      <SectionTitle>Δεδομένα</SectionTitle>
+      <SectionTitle>Γλώσσα · Language</SectionTitle>
+      <Card style={{ gap: 10 }}>
+        <Choice
+          options={[
+            { value: 'auto', label: t('Του κινητού', 'Same as phone') },
+            { value: 'el', label: 'Ελληνικά' },
+            { value: 'en', label: 'English' },
+          ]}
+          value={data.settings.language}
+          onChange={language => setLanguage(language)}
+        />
+        <Text style={[s.hint, { color: c.textMuted }]}>
+          {t(
+            'Αλλάζει και τα κείμενα των ειδοποιήσεων. Τα ονόματα και οι οδηγίες των φαρμάκων μένουν όπως τα έγραψες.',
+            "Reminder texts change too. Medicine names and instructions stay as you wrote them.",
+          )}
+        </Text>
+      </Card>
+
+      <SectionTitle>{t('Δεδομένα', 'Data')}</SectionTitle>
       <Card style={{ gap: 10 }}>
         <Text style={[s.hint, { color: c.textSoft }]}>
-          Όλα μένουν μόνο σε αυτό το κινητό. Κράτα ένα αντίγραφο (π.χ. στείλ' το στον εαυτό σου) πριν αλλάξεις κινητό.
+          {t(
+            "Όλα μένουν μόνο σε αυτό το κινητό. Κράτα ένα αντίγραφο (π.χ. στείλ' το στον εαυτό σου) πριν αλλάξεις κινητό.",
+            'Everything stays on this phone only. Keep a backup (e.g. send it to yourself) before you change phones.',
+          )}
         </Text>
-        <Button label="Αντίγραφο ασφαλείας" icon="share-outline" onPress={exportData} />
-        <Button label="Επαναφορά από αντίγραφο" icon="download-outline" onPress={() => setImportOpen(true)} />
-        <Button label="Σβήσιμο όλων" kind="danger" icon="trash-outline" onPress={resetAll} />
+        <Button label={t('Αντίγραφο ασφαλείας', 'Back up')} icon="share-outline" onPress={exportData} />
+        <Button
+          label={t('Επαναφορά από αντίγραφο', 'Restore from a backup')}
+          icon="download-outline"
+          onPress={() => setImportOpen(true)}
+        />
+        <Button label={t('Σβήσιμο όλων', 'Delete everything')} kind="danger" icon="trash-outline" onPress={resetAll} />
       </Card>
 
       <Text style={[s.hint, { color: c.textMuted, textAlign: 'center', marginTop: 8 }]}>
-        Mario · έκδοση {Constants.expoConfig?.version ?? '—'}
+        Mario · {t('έκδοση', 'version')} {Constants.expoConfig?.version ?? '—'}
         {updateLabel() ? ` · ${updateLabel()}` : ''} · 🐾
       </Text>
 
-      <Sheet visible={importOpen} onClose={() => setImportOpen(false)} title="Επαναφορά από αντίγραφο">
+      <Sheet
+        visible={importOpen}
+        onClose={() => setImportOpen(false)}
+        title={t('Επαναφορά από αντίγραφο', 'Restore from a backup')}
+      >
         <Text style={[s.hint, { color: c.textSoft }]}>
-          Επικόλλησε εδώ το κείμενο του αντιγράφου. Θα αντικαταστήσει ό,τι υπάρχει τώρα.
+          {t(
+            'Επικόλλησε εδώ το κείμενο του αντιγράφου. Θα αντικαταστήσει ό,τι υπάρχει τώρα.',
+            'Paste the backup text here. It will replace everything that is there now.',
+          )}
         </Text>
         <Field
-          label="Αντίγραφο"
+          label={t('Αντίγραφο', 'Backup')}
           value={importText}
           onChangeText={setImportText}
           multiline
           placeholder='{"version":3,...}'
         />
-        <Button label="Επαναφορά" kind="primary" icon="checkmark" onPress={importData} disabled={!importText.trim()} />
+        <Button
+          label={t('Επαναφορά', 'Restore')}
+          kind="primary"
+          icon="checkmark"
+          onPress={importData}
+          disabled={!importText.trim()}
+        />
       </Sheet>
     </Screen>
   );

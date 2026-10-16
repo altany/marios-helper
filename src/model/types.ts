@@ -1,3 +1,5 @@
+import type { LangSetting } from '../i18n';
+
 export type MedKind = 'drops' | 'gel' | 'ointment' | 'pill' | 'liquid' | 'other';
 
 /** A medicine from the vet's prescription. */
@@ -27,7 +29,7 @@ export interface RoutineStep {
 /**
  * A routine is a chain of medicines given one after the other, repeated at the
  * same times every day (or on chosen weekdays). Example:
- * 09:00 & 21:00 → Hylogel, then 20′ after it was given → Lacrimmune.
+ * 09:00 & 21:00 → Blinkdrops, then 20′ after it was given → Tearshield.
  */
 export interface Routine {
   id: string;
@@ -102,6 +104,8 @@ export interface Settings {
   insistent: boolean;
   /** The dose notification barks instead of the phone's usual sound. */
   bark: boolean;
+  /** App language: the phone's ('auto'), Greek or English. */
+  language: LangSetting;
 }
 
 export interface Prescription {
