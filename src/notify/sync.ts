@@ -12,6 +12,7 @@ import {
   signature,
 } from './content';
 import notifee, { AlarmType, AndroidNotificationSetting, TriggerType } from './driver';
+import { clock, log } from './log';
 
 // Makes Android's scheduled and shown notifications match the plan:
 //  - one alarm per medicine that is coming up (or the next repeat of one that is due),
@@ -26,8 +27,11 @@ const isOurs = (id: string | undefined): id is string =>
 
 let running: Promise<void> | null = null;
 let again = false;
+/** Why the next sync runs (for the notification log). */
+let reasons: string[] = [];
 
-export const syncNotifications = (): Promise<void> => {
+export const syncNotifications = (reason = 'other'): Promise<void> => {
+  reasons.push(reason);
   if (running) {
     again = true;
     return running;
@@ -35,10 +39,13 @@ export const syncNotifications = (): Promise<void> => {
   running = (async () => {
     do {
       again = false;
+      const why = reasons.join(', ');
+      reasons = [];
       try {
-        await syncOnce();
+        await syncOnce(why);
       } catch (e) {
         console.warn('Notification sync failed', e);
+        void log(`sync failed: ${String(e)}`);
       }
     } while (again);
   })().finally(() => {
@@ -59,7 +66,7 @@ export const alarmType = async () => {
     : AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE;
 };
 
-const syncOnce = async () => {
+const syncOnce = async (why: string) => {
   const data = await getData();
   const now = Date.now();
   const plan = planNotifications(data, now);
@@ -87,12 +94,14 @@ const syncOnce = async () => {
     if (want && existing.notification.data?.sig === want.notification.data.sig) {
       wanted.delete(id); // already scheduled as it should be
     } else {
+      void log(`cancel alarm ${id}${want ? ' (to change it)' : ''}`);
       await notifee.cancelTriggerNotification(id);
     }
   }
 
   for (const { notification, at } of wanted.values()) {
     if (at <= Date.now() + 2000) continue; // too late to schedule; shown below as due
+    void log(`set alarm ${notification.id} at ${clock(at)} on ${notification.android?.channelId}`);
     await notifee.createTriggerNotification(notification, {
       type: TriggerType.TIMESTAMP,
       timestamp: at,
@@ -107,6 +116,10 @@ const syncOnce = async () => {
     const id = d.notification?.id ?? d.id;
     if (isOurs(id)) shown.set(id, d.notification?.data);
   }
+  void log(
+    `sync (${why}): due [${plan.due.map(d => `${d.step.notifId} since ${clock(d.lastAlertAt)}`).join(', ')}]` +
+      ` · in drawer [${displayed.map(d => (d.notification?.id ? d.notification.id : `no id, ${d.id}`)).join(', ')}]`,
+  );
 
   const physioDue = plan.physio.due?.visible ? plan.physio.due.day : null;
   const keep = new Set([
@@ -116,7 +129,9 @@ const syncOnce = async () => {
     ...plan.physio.keep,
   ]);
   for (const id of shown.keys()) {
-    if (!keep.has(id)) await notifee.cancelDisplayedNotification(id);
+    if (keep.has(id)) continue;
+    void log(`remove from drawer ${id}`);
+    await notifee.cancelDisplayedNotification(id);
   }
 
   for (const d of plan.due) {
@@ -124,11 +139,13 @@ const syncOnce = async () => {
     // Missing although due: its alarm was missed, or it was just swiped away.
     // Only make noise if it became due a moment ago.
     const fresh = now - d.lastAlertAt < 2 * MINUTE;
+    void log(`show ${d.step.notifId} ${fresh ? 'WITH SOUND' : 'quietly'} (due but not in the drawer)`);
     await notifee.displayNotification(doseNotification(data, d.run, d.step, { quiet: !fresh }));
   }
 
   if (physioDue && !shown.has(physioDue.notifId)) {
     const quiet = now - physioDue.dueAt >= 2 * MINUTE; // only make noise if it became due a moment ago
+    void log(`show ${physioDue.notifId} ${quiet ? 'quietly' : 'WITH SOUND'} (due but not in the drawer)`);
     await notifee.displayNotification(physioNotification(data, physioDue, { quiet }));
   }
 
@@ -136,6 +153,7 @@ const syncOnce = async () => {
     if (c.step.dueAt - now < MINUTE) continue;
     const notification = countdownNotification(data, c.run, c.step, c.after, now);
     if (shown.get(c.notifId)?.sig === notification.data.sig) continue;
+    void log(`show countdown ${c.notifId}`);
     await notifee.displayNotification(notification);
   }
 };
@@ -146,11 +164,14 @@ export const redisplayQuietly = async (notifId: string) => {
   const plan = planNotifications(data, Date.now());
   const physio = plan.physio.due;
   if (physio?.visible && physio.day.notifId === notifId) {
+    void log(`show ${notifId} quietly (after a swipe)`);
     await notifee.displayNotification(physioNotification(data, physio.day, { quiet: true }));
     return;
   }
   const due = plan.due.find(d => d.step.notifId === notifId);
-  if (due?.visible) await notifee.displayNotification(doseNotification(data, due.run, due.step, { quiet: true }));
+  if (!due?.visible) return;
+  void log(`show ${notifId} quietly (after a swipe)`);
+  await notifee.displayNotification(doseNotification(data, due.run, due.step, { quiet: true }));
 };
 
 /** Number of our alarms currently scheduled with Android. */

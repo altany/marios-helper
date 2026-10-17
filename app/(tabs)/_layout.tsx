@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { ColorValue } from 'react-native';
 import { t, useLang } from '../../src/i18n';
 import { IconName } from '../../src/ui/components';
 import { useColors } from '../../src/ui/theme';
 
 const icon =
   (on: IconName, off: IconName) =>
-  ({ color, focused }: { color: string; focused: boolean }) => (
+  ({ color, focused }: { color: ColorValue; focused: boolean }) => (
     <Ionicons name={focused ? on : off} size={24} color={color} />
   );
 

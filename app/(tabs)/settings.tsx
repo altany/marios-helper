@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, AppState, Platform, Share, Text, View } from 'react-native';
+import { Alert, AppState, Platform, Share, StyleSheet, Text, View } from 'react-native';
 import { MAX_REPEATS } from '../../src/engine/plan';
 import { t } from '../../src/i18n';
 import { formatMinutes } from '../../src/lib/time';
@@ -11,6 +11,7 @@ import { AppData, Settings } from '../../src/model/types';
 import { createChannels } from '../../src/notify/channels';
 import { act } from '../../src/notify/commands';
 import { Check, runChecks, sendTestNotification } from '../../src/notify/health';
+import { clearLog, readLog } from '../../src/notify/log';
 import { syncNotifications } from '../../src/notify/sync';
 import { getData, replaceAll, useData } from '../../src/store/store';
 import {
@@ -39,11 +40,13 @@ export default function SettingsScreen() {
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
+  const [logLines, setLogLines] = useState<string[]>([]);
 
   const refreshChecks = useCallback(() => {
     runChecks()
       .then(setChecks)
       .catch(() => setChecks([]));
+    readLog().then(setLogLines);
   }, []);
   useFocusEffect(refreshChecks);
   // Coming back from the phone's settings: show the new state.
@@ -74,7 +77,7 @@ export default function SettingsScreen() {
       const parsed = JSON.parse(importText) as AppData;
       if (!Array.isArray(parsed.meds) || !Array.isArray(parsed.routines)) throw new Error('bad');
       await replaceAll(parsed);
-      await syncNotifications();
+      await syncNotifications('restore from a backup');
       setImportOpen(false);
       setImportText('');
       toast(t('Τα δεδομένα επανήλθαν', 'Your data is back'));
@@ -100,7 +103,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await replaceAll(defaultData());
-            await syncNotifications();
+            await syncNotifications('delete everything');
             toast(t('Έγινε επαναφορά', 'Everything was reset'));
           },
         },
@@ -285,6 +288,39 @@ export default function SettingsScreen() {
         </Text>
       </Card>
 
+      <SectionTitle>{t('Αρχείο ειδοποιήσεων', 'Notification log')}</SectionTitle>
+      <Card style={{ gap: 10 }}>
+        <Text style={[s.hint, { color: c.textSoft }]}>
+          {t(
+            'Γράφει πότε εμφανίστηκε κάθε ειδοποίηση, με ήχο ή χωρίς, και γιατί. Στείλ\' το αν κάτι χτυπάει χωρίς λόγο.',
+            'It notes when each reminder appeared, with or without sound, and why. Send it if something rings for no reason.',
+          )}
+        </Text>
+        {logLines.length > 0 && (
+          <Text style={[st.log, { color: c.textSoft, backgroundColor: c.input }]}>{logLines.slice(-8).join('\n')}</Text>
+        )}
+        <Button
+          label={t(`Αποστολή αρχείου (${logLines.length} γραμμές)`, `Send the log (${logLines.length} lines)`)}
+          icon="share-outline"
+          disabled={logLines.length === 0}
+          onPress={async () => {
+            const lines = await readLog();
+            await Share.share({ title: 'Mario log', message: lines.join('\n') });
+          }}
+        />
+        <Button
+          small
+          kind="ghost"
+          label={t('Καθαρισμός αρχείου', 'Clear the log')}
+          icon="trash-outline"
+          style={{ alignSelf: 'flex-start' }}
+          onPress={async () => {
+            await clearLog();
+            setLogLines([]);
+          }}
+        />
+      </Card>
+
       <SectionTitle>{t('Δεδομένα', 'Data')}</SectionTitle>
       <Card style={{ gap: 10 }}>
         <Text style={[s.hint, { color: c.textSoft }]}>
@@ -336,3 +372,13 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
+
+const st = StyleSheet.create({
+  log: {
+    fontFamily: Platform.select({ android: 'monospace', ios: 'Menlo', default: 'monospace' }),
+    fontSize: 11,
+    lineHeight: 15,
+    borderRadius: 10,
+    padding: 10,
+  },
+});
