@@ -5,6 +5,7 @@ import { getData, update } from '../store/store';
 import { giveStep, physioDone, snoozePhysioFor, snoozeStepFor } from './commands';
 import { ACTION_GIVE, ACTION_PHYSIO_DONE, ACTION_PHYSIO_LATER, ACTION_SNOOZE, bravoNotification } from './content';
 import notifee, { Event, EventType } from './driver';
+import { log } from './log';
 import { redisplayQuietly, syncNotifications } from './sync';
 
 // Handles taps on notifications. Runs both when the app is open (foreground)
@@ -56,6 +57,7 @@ const celebrateIfDayDone = async (runId: string) => {
   const data = await getData();
   const run = buildRun(data, runId, now);
   if (!run || run.date !== dateKey(now) || !dayDone(data, run.date, now)) return;
+  void log('show well done');
   await notifee.displayNotification(bravoNotification(data, nextUpcoming(data, now), now));
 };
 
@@ -71,7 +73,7 @@ const handlePhysioEvent = async ({ type, detail }: Event) => {
       const action = detail.pressAction?.id;
       if (action === ACTION_PHYSIO_DONE && day.status !== 'done') await physioDone(date);
       else if (action === ACTION_PHYSIO_LATER && day.status === 'due') await snoozePhysioFor(date, PHYSIO_SNOOZE_MIN);
-      else await syncNotifications(); // a stale button: clear it
+      else await syncNotifications('old physio button'); // a stale button: clear it
       return;
     }
     case EventType.DISMISSED: {
@@ -84,7 +86,7 @@ const handlePhysioEvent = async ({ type, detail }: Event) => {
       return;
     }
     case EventType.DELIVERED:
-      await syncNotifications();
+      await syncNotifications('physio reminder shown');
       return;
   }
 };
@@ -92,6 +94,11 @@ const handlePhysioEvent = async ({ type, detail }: Event) => {
 export const handleEvent = async (event: Event, foreground: boolean) => {
   const { type, detail } = event;
   const notifId = detail.notification?.id;
+  void log(
+    `event ${EventType[type] ?? type} ${notifId ?? '(no id)'} ${foreground ? 'app open' : 'background'}` +
+      (detail.pressAction?.id ? ` · button ${detail.pressAction.id}` : '') +
+      (detail.notification?.android?.channelId ? ` · ${detail.notification.android.channelId}` : ''),
+  );
 
   if (notifId === TEST_NOTIFICATION_ID) {
     if (type === EventType.ACTION_PRESS || type === EventType.PRESS) await notifee.cancelNotification(notifId);
@@ -107,7 +114,7 @@ export const handleEvent = async (event: Event, foreground: boolean) => {
   switch (type) {
     case EventType.ACTION_PRESS: {
       if (!(await stillOpen(target))) {
-        await syncNotifications(); // clears the stale notification
+        await syncNotifications('old button'); // clears the stale notification
         return;
       }
       if (detail.pressAction?.id === ACTION_GIVE) {
@@ -134,7 +141,7 @@ export const handleEvent = async (event: Event, foreground: boolean) => {
     }
     case EventType.DELIVERED: {
       // A reminder just fired: schedule its next repeat and refresh everything.
-      await syncNotifications();
+      await syncNotifications('reminder shown');
       if (foreground && detail.notification?.data?.kind === 'dose') requestPrompt(target);
       return;
     }

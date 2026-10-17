@@ -20,12 +20,14 @@ import notifee, {
   TriggerType,
 } from './driver';
 import { TEST_NOTIFICATION_ID } from './events';
+import { log } from './log';
 import { alarmType, scheduledCount, syncNotifications } from './sync';
 
 const CLEANUP_KEY = 'marios-helper/cleanup-v4';
 
 /** Runs once when the app opens: permissions, channels, tidy-up and first sync. */
 export const setupNotifications = async () => {
+  void log('app opened');
   await getData(); // loads (and migrates) the data first
   try {
     await notifee.requestPermission();
@@ -57,7 +59,7 @@ export const setupNotifications = async () => {
     await cleanupOldVersion();
     await AsyncStorage.setItem(CLEANUP_KEY, String(Date.now()));
   }
-  await syncNotifications();
+  await syncNotifications('app opened');
 };
 
 export type Check = {
@@ -175,7 +177,7 @@ export const runChecks = async (): Promise<Check[]> => {
       count > 0
         ? t('Οι επόμενες ειδοποιήσεις είναι έτοιμες.', 'The next reminders are ready.')
         : t('Καμία προγραμματισμένη ειδοποίηση. Πάτα «Συγχρονισμός».', 'No reminders scheduled. Tap "Sync".'),
-    fix: syncNotifications,
+    fix: () => syncNotifications('«Συγχρονισμός» button'),
     fixLabel: t('Συγχρονισμός', 'Sync'),
   });
 

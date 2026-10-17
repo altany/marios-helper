@@ -36,7 +36,7 @@ export default function RootLayout() {
     // Coming back to the app: pick up changes made from the notification
     // buttons while it was in the background, and refresh the alarms.
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') reload().then(syncNotifications);
+      if (state === 'active') reload().then(() => syncNotifications('app came to the front'));
     });
     return () => {
       unsubscribe();
