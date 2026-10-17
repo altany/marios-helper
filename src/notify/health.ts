@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
 import { t } from '../i18n';
 import { getData } from '../store/store';
 import { ACCENT } from '../ui/theme';
@@ -60,6 +60,17 @@ export const setupNotifications = async () => {
     await AsyncStorage.setItem(CLEANUP_KEY, String(Date.now()));
   }
   await syncNotifications('app opened');
+};
+
+/**
+ * The phone maker's own battery screen. Newer phones may not have the screen the
+ * library knows (e.g. OnePlus), and then nothing opens: in that case open the
+ * app's page in the phone's settings, where the background and battery options are.
+ */
+const openMakerSettings = async () => {
+  await notifee.openPowerManagerSettings();
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  if (AppState.currentState === 'active') await Linking.openSettings();
 };
 
 export type Check = {
@@ -162,7 +173,7 @@ export const runChecks = async (): Promise<Check[]> => {
           'Κάποια κινητά (Samsung, OnePlus, Xiaomi κ.ά.) έχουν και δική τους εξοικονόμηση, που δεν μπορώ να ελέγξω. Αν υπάρχει, επέτρεψε στην εφαρμογή να τρέχει στο παρασκήνιο.',
           'Some phones (Samsung, OnePlus, Xiaomi and others) have their own battery saving, which the app can\'t check. If yours does, allow the app to run in the background.',
         ),
-        fix: () => notifee.openPowerManagerSettings(),
+        fix: openMakerSettings,
         fixLabel: t('Άνοιγμα', 'Open'),
       });
     }
