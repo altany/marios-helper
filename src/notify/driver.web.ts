@@ -1,7 +1,7 @@
 // Web build (used only to preview the screens in a browser): notifications do nothing.
-import real, { AuthorizationStatus, AndroidNotificationSetting } from '@notifee/react-native';
+import real, { AuthorizationStatus, AndroidNotificationSetting } from 'react-native-notify-kit';
 
-export * from '@notifee/react-native';
+export * from 'react-native-notify-kit';
 
 const answers: Record<string, unknown> = {
   getTriggerNotifications: [],

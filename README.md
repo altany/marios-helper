@@ -9,7 +9,7 @@ Meet Mario, my adorable furry friend who needs a bit of extra care! This app rem
 ## What it does
 
 - **Σήμερα (Today)** – what is due now, with big "Το έδωσα" / "Αργότερα" buttons, the next medicine, and the whole day. Go back to see what was given, or forward to see (and change) the coming days.
-- **Chains of medicines** – a routine is a list of medicines given one after the other, e.g. *Hylogel → 20′ → Lacrimmune*. The next reminder comes 20 minutes after you tap "Το έδωσα", not 20 minutes after the planned time. A quiet countdown shows how long is left.
+- **Chains of medicines** – a routine is a list of medicines given one after the other, e.g. *Blinkdrops → 20′ → Tearshield* (made-up names). The next reminder comes 20 minutes after you tap "Το έδωσα", not 20 minutes after the planned time. A quiet countdown shows how long is left.
 - **Every N hours** – "Κάθε … ώρες" fills in the times from the first dose of the day (e.g. 07:00 · 15:00 · 23:00). Each later dose then counts from when the previous one was actually given: 07:00 given at 08:22 → next at 16:22, and the one after it moves along at once (00:22), then again when the second is given. The first dose of each day stays at its time. Any routine with two or more times can do this ("Μετράει από την προηγούμενη δόση").
 - **Change one reminder only** – tap any future dose to move it to another time just that day, skip it, or put it back. "Αλλαγή ώρας για όλη τη μέρα" moves every dose of a day at once (e.g. when you woke up late).
 - **Sticky notifications** – a reminder stays until you tap "Το έδωσα" or "Αργότερα". If it is swiped away it comes back quietly. If nobody answers it rings again every few minutes (you choose how often, up to 6 times), then stays quietly in the drawer. It only goes away by itself when the dose counts as missed (after 12 hours by default).
@@ -33,6 +33,10 @@ No laptop needed. Every change merged into `main` goes to the phone by itself (`
 - **Most changes** (screens, texts, logic) arrive as an over-the-air update. The app downloads it on its own and shows "Υπάρχει νέα έκδοση" with a restart button.
 - **Changes to native code** (new native library, permissions, app icon) need a new app. A new APK is built with EAS Build, and the link to install it is in the summary of the "Deploy to phone" run on GitHub.
 
+### Try a change before it reaches the real app
+
+Add the label `test-build` to a pull request. The "Test build" workflow makes a separate app, **Mario TEST** (`com.altany.marioshelper.test`), and puts its install link in the run summary. It installs next to the real app, with its own data and its own reminders, so Mario's real reminders are not touched. Each run is one EAS build.
+
 One-time setup:
 
 1. On expo.dev: Account settings → Access tokens → create a token.
@@ -41,8 +45,7 @@ One-time setup:
 
 ## How it works (for developers)
 
-- Expo SDK 51 + expo-router. Notifications use [Notifee](https://github.com/invertase/notifee) (`@notifee/react-native`).
-  Notifee was archived in April 2026; its maintained fork [`react-native-notify-kit`](https://github.com/marcocrupi/react-native-notify-kit) has the same API but needs the New Architecture. To switch, change the import in `src/notify/driver.ts`.
+- Expo SDK 57 (React Native 0.86, New Architecture) + expo-router. Notifications use [`react-native-notify-kit`](https://github.com/marcocrupi/react-native-notify-kit), the maintained fork of [Notifee](https://github.com/invertase/notifee) (archived in April 2026), with the same API. It is imported only in `src/notify/driver.ts`.
 - Instead of repeating alarms, the app works out the concrete doses ("runs") for the next 7 days from the routines (`src/engine/runs.ts`), and schedules one exact alarm per dose. Physio (`src/engine/physio.ts`) adds one alarm per day for the exercises and one per visit. Every change goes through `act()` (`src/notify/commands.ts`), which saves the data and then syncs the alarms with the plan (`src/engine/plan.ts`, `src/notify/sync.ts`). The 7 days are topped up every time the app opens or a notification fires.
 - Notification buttons are handled in `src/notify/events.ts`. It is registered in `index.js` so it also runs when Android starts the app in the background.
 - All data is one JSON document in AsyncStorage (`src/store/store.ts`).
@@ -51,7 +54,7 @@ One-time setup:
 ```
 app/                 screens (expo-router)
 src/engine/          schedule logic, no React
-src/notify/          notifications (Notifee)
+src/notify/          notifications (notify-kit, the Notifee fork)
 src/store/           saving data
 src/model/           types, default data, migration from v2
 src/ui/              components, theme, sheets

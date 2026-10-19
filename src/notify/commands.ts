@@ -14,7 +14,7 @@ export const act = async (recipe: (draft: AppData) => void) => {
     recipe(draft);
     prune(draft, Date.now());
   });
-  await syncNotifications();
+  await syncNotifications('a change in the app');
   return data;
 };
 

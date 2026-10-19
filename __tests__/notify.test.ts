@@ -24,9 +24,9 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 jest.mock('../src/notify/driver', () => {
   const enums = {
-    ...jest.requireActual('@notifee/react-native/dist/types/Notification'),
-    ...jest.requireActual('@notifee/react-native/dist/types/NotificationAndroid'),
-    ...jest.requireActual('@notifee/react-native/dist/types/Trigger'),
+    ...jest.requireActual('react-native-notify-kit/dist/types/Notification.js'),
+    ...jest.requireActual('react-native-notify-kit/dist/types/NotificationAndroid.js'),
+    ...jest.requireActual('react-native-notify-kit/dist/types/Trigger.js'),
   };
   const api = {
     getNotificationSettings: async () => ({ authorizationStatus: 1, android: { alarm: 1 } }),
@@ -49,7 +49,7 @@ jest.mock('../src/notify/driver', () => {
   return { __esModule: true, default: api, ...enums };
 });
 
-import { EventType } from '@notifee/react-native/dist/types/Notification';
+import { EventType } from 'react-native-notify-kit/dist/types/Notification.js';
 import { markStep } from '../src/engine/actions';
 import { apptNotifId, physioNotifId, saveAppointment, setPhysioDaily } from '../src/engine/physio';
 import { runId, runsForDay, stepNotifId } from '../src/engine/runs';
@@ -57,6 +57,7 @@ import { atTime } from '../src/lib/time';
 import { CH_DOSE, CH_DOSE_BARK, CH_DOSE_QUIET } from '../src/notify/channels';
 import { BRAVO_ID } from '../src/notify/content';
 import { handleEvent } from '../src/notify/events';
+import { readLog } from '../src/notify/log';
 import { syncNotifications } from '../src/notify/sync';
 import { getData, replaceAll, update } from '../src/store/store';
 import { sampleData } from './fixtures';
@@ -105,6 +106,13 @@ it('repeats an unanswered reminder', async () => {
   expect(mockNotifs.triggers.get(BLINKDROPS)?.trigger.timestamp).toBe(t('09:10'));
   expect(mockNotifs.triggers.get(BLINKDROPS)?.notification.title).toBe('Ξέχασες το Blinkdrops;');
   expect(mockNotifs.displayed.has(BLINKDROPS)).toBe(true);
+});
+
+it('notes in the log what happened and why', async () => {
+  const lines = await readLog();
+  expect(lines.some(l => l.includes(`event DELIVERED ${BLINKDROPS} background`))).toBe(true);
+  expect(lines.some(l => l.includes(`sync (reminder shown): due [${BLINKDROPS} since 09:00:00`))).toBe(true);
+  expect(lines.some(l => l.includes(`set alarm ${BLINKDROPS} at 09:10:00`))).toBe(true);
 });
 
 it('brings it back quietly when swiped away', async () => {

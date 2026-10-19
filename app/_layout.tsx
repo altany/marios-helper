@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -36,7 +36,7 @@ export default function RootLayout() {
     // Coming back to the app: pick up changes made from the notification
     // buttons while it was in the background, and refresh the alarms.
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') reload().then(syncNotifications);
+      if (state === 'active') reload().then(() => syncNotifications('app came to the front'));
     });
     return () => {
       unsubscribe();
