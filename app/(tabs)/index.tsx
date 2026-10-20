@@ -1,8 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { shiftDay } from '../../src/engine/actions';
+import { demoData } from '../../src/engine/demo';
 import { dueSteps, nextUpcoming, RunView, runsForDay, StepView } from '../../src/engine/runs';
 import { t } from '../../src/i18n';
 import {
@@ -87,6 +88,26 @@ export default function TodayScreen() {
           </View>
         }
       >
+        {Platform.OS === 'web' && (
+          <Card style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
+            <Text style={[st.progressText, { color: c.text }]}>{t('Δοκιμαστική έκδοση', 'Demo')}</Text>
+            <Text style={[s.hint, { color: c.textSoft }]}>
+              {t(
+                'Φανταστικά δεδομένα. Δοκίμασε το «Το έδωσα» ή πάτα μια δόση. Οι υπενθυμίσεις χτυπάνε μόνο στην εφαρμογή για Android.',
+                'Made-up data. Try "I gave it", or tap a dose. Reminders only ring in the Android app.',
+              )}
+            </Text>
+            <Button
+              small
+              kind="ghost"
+              label={t('Από την αρχή', 'Start over')}
+              icon="refresh"
+              style={{ alignSelf: 'flex-start' }}
+              onPress={() => act(d => Object.assign(d, demoData(Date.now())))}
+            />
+          </Card>
+        )}
+
         {updateReady && (
           <Card style={{ backgroundColor: c.accentSoft, borderColor: 'transparent' }}>
             <Text style={[st.progressText, { color: c.text }]}>{t('Υπάρχει νέα έκδοση', "There's a new version")}</Text>
