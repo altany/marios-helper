@@ -6,6 +6,7 @@ A medicine reminder app for my dog, Mario. I built it with Expo, and I made and 
 
 <p align="center">
   <a href="docs/mario-demo.mp4"><b>Watch the 30-second video</b></a> ·
+  <a href="https://marios-helper.expo.app"><b>Try it in your browser</b></a> ·
   <a href="https://expo.dev/artifacts/eas/HoN2cjB05kRiXn513TXWlOmXT6bbX5963Hi1Xxu6im8.apk"><b>Install the Android app</b></a> ·
   <a href="https://tany4.com/blog/posts/marios-helper-v3"><b>Read how I built it</b></a>
 </p>
@@ -48,6 +49,7 @@ The medicine names are made up.
 - **Expo SDK 57** with React Native's New Architecture, and **expo-router** for the screens.
 - **EAS Build** makes the Android app in the cloud. **EAS Update** sends JavaScript changes over the air, and the app shows "There's a new version" with a restart button.
 - **One GitHub Action picks between the two**, using the app's native **fingerprint**. If a build with the same fingerprint already exists, only JavaScript changed, so it publishes an update. If not, it starts a new build and puts the install link in the run summary. The runtime version is that same fingerprint, so an update never lands on a build that can't run it. See [`deploy.sh`](scripts/deploy.sh).
+- **EAS Hosting** runs the [browser demo](https://marios-helper.expo.app), with made-up data, so people without an Android phone can try it. Each pull request gets its own preview link. See [`web-demo.yml`](.github/workflows/web-demo.yml).
 - **App variants**: a `test-build` label on a pull request builds "Mario TEST", a second app that installs next to the real one, with its own data. See [`app.config.js`](app.config.js).
 - **Config plugins** put the bark and the notification icon into the Android app. See [`plugins/`](plugins/).
 - **[react-native-notify-kit](https://github.com/marcocrupi/react-native-notify-kit)**, the maintained fork of Notifee, for notifications with buttons, exact alarms and handling taps with the app closed.
