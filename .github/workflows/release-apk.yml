@@ -1,0 +1,37 @@
+name: APK on GitHub
+
+# After each "Deploy to phone", puts the newest real app on a GitHub release
+# (scripts/release-apk.sh), so the download link keeps working after EAS
+# deletes the build. Can also be run by hand.
+on:
+  workflow_run:
+    workflows: [Deploy to phone]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: ./scripts/release-apk.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -18,6 +18,7 @@ The owner asks for changes from her phone, so shipping must not need a laptop.
 - Work on a branch, open a PR. When it is merged into `main`, `.github/workflows/deploy.yml` runs `scripts/deploy.sh`.
 - If only JavaScript changed, it publishes an EAS Update (channel `preview`). The app downloads it by itself and shows "Υπάρχει νέα έκδοση" on the Today screen.
 - If native code changed (the native fingerprint differs), it makes a new APK with EAS Build (profile `preview`) and puts the install link in the run summary. Tell the owner she has to install it.
+- After each deploy, `.github/workflows/release-apk.yml` puts the newest APK on a GitHub release (EAS deletes builds after up to 90 days). https://github.com/altany/marios-helper/releases/latest/download/marios-helper.apk always gives the newest real app; the README and the Expo App Awards entry link to it.
 - To try a change with native code on the phone first, add the label `test-build` to the PR (ask the owner first: each run is one EAS build). It makes the separate app "Mario TEST" (`APP_VARIANT=test` in `app.config.js`, profile `test`), which installs next to the real one.
 - After merging, check the "Deploy to phone" run with the GitHub tools. If it fails, read the job log: `deploy.sh` prints the end of the EAS build log there.
 

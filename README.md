@@ -7,7 +7,7 @@ A medicine reminder app for my dog, Mario. I built it with Expo, and I made and 
 <p align="center">
   <a href="docs/mario-demo.mp4"><b>Watch the 30-second video</b></a> ·
   <a href="https://marios-helper.expo.app"><b>Try it in your browser</b></a> ·
-  <a href="https://expo.dev/artifacts/eas/HoN2cjB05kRiXn513TXWlOmXT6bbX5963Hi1Xxu6im8.apk"><b>Install the Android app</b></a> ·
+  <a href="https://github.com/altany/marios-helper/releases/latest/download/marios-helper.apk"><b>Install the Android app</b></a> ·
   <a href="https://tany4.com/blog/posts/marios-helper-v3"><b>Read how I built it</b></a>
 </p>
 
@@ -84,7 +84,7 @@ Made for Mario: the pet's name is a setting, but the photo and the colours are h
 No laptop needed. Every change merged into `main` goes to the phone by itself (`.github/workflows/deploy.yml` → `scripts/deploy.sh`):
 
 - **Most changes** (screens, texts, logic) arrive as an over-the-air update. The app downloads it on its own and shows "Υπάρχει νέα έκδοση" with a restart button.
-- **Changes to native code** (new native library, permissions, app icon) need a new app. A new APK is built with EAS Build, and the link to install it is in the summary of the "Deploy to phone" run on GitHub.
+- **Changes to native code** (new native library, permissions, app icon) need a new app. A new APK is built with EAS Build, and the link to install it is in the summary of the "Deploy to phone" run on GitHub. EAS deletes builds after up to 90 days, so the "APK on GitHub" workflow also puts each new APK on a [GitHub release](https://github.com/altany/marios-helper/releases/latest), where it stays (`scripts/release-apk.sh`).
 
 ### Try a change before it reaches the real app
 
