@@ -1,0 +1,42 @@
+name: Web demo
+
+# The browser preview with made-up data (src/engine/demo.ts), on EAS Hosting,
+# so anyone can try the app without an Android phone. A pull request gets its
+# own preview link; main goes to the demo's main address.
+# Needs the EXPO_TOKEN secret, like "Deploy to phone".
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: web-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npx expo export -p web
+      - name: Deploy to EAS Hosting
+        run: |
+          set -o pipefail
+          args=--non-interactive
+          [ "${{ github.event_name }}" = pull_request ] || args="$args --prod"
+          eas deploy $args 2>&1 | tee deploy.log
+          {
+            echo "### Web demo"
+            grep -Eo 'https://[a-zA-Z0-9.-]+\.expo\.app[^ ]*' deploy.log | sort -u | sed 's/^/- /' || true
+          } >> "$GITHUB_STEP_SUMMARY"

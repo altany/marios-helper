@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { ColorValue } from 'react-native';
+import { ColorValue, Platform } from 'react-native';
 import { t, useLang } from '../../src/i18n';
 import { IconName } from '../../src/ui/components';
 import { useColors } from '../../src/ui/theme';
@@ -21,7 +21,12 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: c.accentText,
         tabBarInactiveTintColor: c.textMuted,
-        tabBarStyle: { backgroundColor: c.tabBar, borderTopColor: c.border },
+        tabBarStyle: {
+          backgroundColor: c.tabBar,
+          borderTopColor: c.border,
+          // In the browser the labels were cut at the bottom.
+          ...(Platform.OS === 'web' && { height: 66, paddingTop: 6, paddingBottom: 8 }),
+        },
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
       }}
     >

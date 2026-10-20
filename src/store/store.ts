@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import { demoData } from '../engine/demo';
 import { setLanguage } from '../i18n';
+import { dateKey } from '../lib/time';
 import { defaultData } from '../model/defaults';
 import { migrateV2, normalize, V2_SETTINGS_KEY } from '../model/migrate';
 import { AppData } from '../model/types';
@@ -10,6 +13,8 @@ import { AppData } from '../model/types';
 // background and a tap in the app can't overwrite each other.
 
 const KEY = 'marios-helper/data/v3';
+/** Browser preview only: the day the demo data was made for. */
+const DEMO_DAY_KEY = 'marios-helper/demo-day';
 
 let cache: AppData | null = null;
 let loading: Promise<AppData> | null = null;
@@ -18,6 +23,11 @@ const listeners = new Set<(data: AppData) => void>();
 
 const loadFromDisk = async (): Promise<AppData> => {
   const raw = await AsyncStorage.getItem(KEY);
+  if (Platform.OS === 'web') {
+    // The browser preview starts with made-up data, made again on a new day.
+    const demoDay = await AsyncStorage.getItem(DEMO_DAY_KEY);
+    if (!raw || (demoDay && demoDay !== dateKey(Date.now()))) return resetDemo();
+  }
   if (raw) return normalize(JSON.parse(raw));
 
   // First start of this version: bring over the settings of the old app if any.
@@ -30,6 +40,15 @@ const loadFromDisk = async (): Promise<AppData> => {
     console.warn('Could not read old settings, starting fresh', e);
   }
   await AsyncStorage.setItem(KEY, JSON.stringify(data));
+  return data;
+};
+
+/** Browser preview: made-up data for today (also the "Start over" button). */
+const resetDemo = async (): Promise<AppData> => {
+  const now = Date.now();
+  const data = demoData(now);
+  await AsyncStorage.setItem(KEY, JSON.stringify(data));
+  await AsyncStorage.setItem(DEMO_DAY_KEY, dateKey(now));
   return data;
 };
 
