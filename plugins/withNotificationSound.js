@@ -1,5 +1,5 @@
 // Copies the notification sounds in assets/sounds/ into the Android app
-// (res/raw), so a notification channel can use them, e.g. sound: 'bark'.
+// (res/raw), so a notification channel can use them, e.g. sound: 'woof'.
 const fs = require('fs');
 const path = require('path');
 const { withDangerousMod } = require('expo/config-plugins');
