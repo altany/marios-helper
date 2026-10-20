@@ -2,7 +2,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { ReactNode, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleProp,
@@ -19,6 +18,7 @@ import { t } from '../i18n';
 import { caps } from '../lib/text';
 import { kindInfo } from '../model/defaults';
 import { MedKind } from '../model/types';
+import { Layer } from './frame';
 import { radius, rounded, useColors } from './theme';
 
 export type IconName = keyof typeof Ionicons.glyphMap;
@@ -348,7 +348,7 @@ export const Sheet = ({
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Layer visible={visible} animationType="slide" onClose={onClose}>
       <View style={s.sheetWrap}>
         <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.overlay }]} onPress={onClose} />
         <View style={[s.sheet, { backgroundColor: c.card, paddingBottom: insets.bottom + 16 }]}>
@@ -364,7 +364,7 @@ export const Sheet = ({
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    </Layer>
   );
 };
 

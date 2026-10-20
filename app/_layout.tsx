@@ -11,6 +11,7 @@ import { setupNotifications } from '../src/notify/health';
 import { syncNotifications } from '../src/notify/sync';
 import { reload } from '../src/store/store';
 import { DosePrompt } from '../src/ui/DosePrompt';
+import { DeviceFrame } from '../src/ui/frame';
 import { FONT_ROUNDED, useColors } from '../src/ui/theme';
 import { ToastHost } from '../src/ui/toast';
 
@@ -50,18 +51,20 @@ export default function RootLayout() {
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={{ ...base, colors: { ...base.colors, background: c.bg, card: c.card, primary: c.accent } }}>
-        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="routine/[id]" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="med/[id]" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="history" />
-          <Stack.Screen name="physio" />
-        </Stack>
-        <DosePrompt />
-        <ToastHost />
-      </ThemeProvider>
+      <DeviceFrame>
+        <ThemeProvider value={{ ...base, colors: { ...base.colors, background: c.bg, card: c.card, primary: c.accent } }}>
+          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="routine/[id]" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="med/[id]" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="history" />
+            <Stack.Screen name="physio" />
+          </Stack>
+          <DosePrompt />
+          <ToastHost />
+        </ThemeProvider>
+      </DeviceFrame>
     </SafeAreaProvider>
   );
 }

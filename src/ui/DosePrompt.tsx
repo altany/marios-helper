@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BackHandler, Image, Modal, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Image, StyleSheet, Text, View } from 'react-native';
 import { buildRun, dueSteps } from '../engine/runs';
 import { t } from '../i18n';
 import { caps } from '../lib/text';
@@ -10,6 +10,7 @@ import { onPrompt } from '../notify/events';
 import { getData, useData } from '../store/store';
 import { Button, Chip, MedIcon, s, useNow } from './components';
 import { SNOOZE_OPTIONS } from './dose';
+import { Layer } from './frame';
 import { radius, rounded, useColors } from './theme';
 import { toast } from './toast';
 
@@ -55,7 +56,7 @@ export const DosePrompt = () => {
   const after = nextLine(run, step);
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={() => setTarget(null)} statusBarTranslucent>
+    <Layer visible animationType="fade" onClose={() => setTarget(null)} statusBarTranslucent>
       <View style={[st.overlay, { backgroundColor: c.overlay }]}>
         <View style={[st.box, { backgroundColor: c.card }]}>
           <View style={st.top}>
@@ -138,7 +139,7 @@ export const DosePrompt = () => {
           <Button label={t('Κλείσιμο', 'Close')} kind="ghost" onPress={() => setTarget(null)} />
         </View>
       </View>
-    </Modal>
+    </Layer>
   );
 };
 
