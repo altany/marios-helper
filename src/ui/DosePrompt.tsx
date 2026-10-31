@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BackHandler, Image, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { buildRun, dueSteps } from '../engine/runs';
 import { t } from '../i18n';
 import { caps } from '../lib/text';
@@ -9,8 +9,9 @@ import { nextLine } from '../notify/content';
 import { onPrompt } from '../notify/events';
 import { getData, useData } from '../store/store';
 import { Button, Chip, MedIcon, s, useNow } from './components';
-import { SNOOZE_OPTIONS } from './dose';
+import { earlierStart, givenAt, SNOOZE_OPTIONS } from './dose';
 import { Layer } from './frame';
+import { TimePicker } from './pickers';
 import { radius, rounded, useColors } from './theme';
 import { toast } from './toast';
 
@@ -26,9 +27,14 @@ export const DosePrompt = () => {
   const now = useNow(15_000);
   const [target, setTarget] = useState<Target | null>(null);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
+  /** The time picked for "I gave it earlier", while picking. */
+  const [earlier, setEarlier] = useState<string | null>(null);
 
   useEffect(() => onPrompt(t => setTarget(t)), []);
-  useEffect(() => setSnoozeOpen(false), [target]);
+  useEffect(() => {
+    setSnoozeOpen(false);
+    setEarlier(null);
+  }, [target]);
 
   useEffect(() => {
     if (!target) return;
@@ -57,7 +63,7 @@ export const DosePrompt = () => {
 
   return (
     <Layer visible animationType="fade" onClose={() => setTarget(null)} statusBarTranslucent>
-      <View style={[st.overlay, { backgroundColor: c.overlay }]}>
+      <ScrollView style={{ backgroundColor: c.overlay }} contentContainerStyle={st.overlay}>
         <View style={[st.box, { backgroundColor: c.card }]}>
           <View style={st.top}>
             <Image
@@ -88,63 +94,93 @@ export const DosePrompt = () => {
               {!!step.med?.dose && <Text style={[st.dose, { color: c.text }]}>{step.med.dose}</Text>}
             </View>
           </View>
-          {!!step.med?.notes && <Text style={[st.notes, { color: c.textSoft }]}>{step.med.notes}</Text>}
-          {!!after && (
-            <View style={[st.next, { backgroundColor: c.accentSoft }]}>
-              <Text style={{ color: c.accentText, fontWeight: '700' }}>{after}</Text>
-            </View>
-          )}
 
-          <Button
-            label={t('Το έδωσα', 'I gave it')}
-            kind="success"
-            icon="paw"
-            onPress={async () => {
-              await giveStep(run.id, step.index);
-              await done(t(`${step.name}: δόθηκε`, `${step.name}: given`));
-            }}
-          />
-
-          {snoozeOpen ? (
-            <View style={s.wrap}>
-              {SNOOZE_OPTIONS.map(min => (
-                <Chip
-                  key={min}
-                  label={formatMinutes(min)}
-                  onPress={async () => {
-                    await snoozeStepFor(run.id, step.index, min);
-                    await done(
-                      t(
-                        `Υπενθύμιση στις ${toHHMM(Date.now() + min * MINUTE)}`,
-                        `Reminder at ${toHHMM(Date.now() + min * MINUTE)}`,
-                      ),
-                    );
-                  }}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button style={{ flex: 1 }} label={t('Αργότερα', 'Later')} onPress={() => setSnoozeOpen(true)} />
+          {earlier != null ? (
+            <>
+              <Text style={[s.hint, { color: c.textSoft }]}>
+                {t(
+                  'Πότε το έδωσες; Το επόμενο φάρμακο της σειράς υπολογίζεται από αυτή την ώρα.',
+                  'When did you give it? The next medicine in the chain is timed from this.',
+                )}
+              </Text>
+              <TimePicker value={earlier} onChange={setEarlier} />
               <Button
-                style={{ flex: 1 }}
-                label={t('Παράλειψη', 'Skip')}
+                label={t(`Δόθηκε στις ${earlier}`, `Given at ${earlier}`)}
+                kind="success"
+                icon="paw"
                 onPress={async () => {
-                  await skipStep(run.id, step.index);
-                  await done(t(`${step.name}: παράλειψη`, `${step.name}: skipped`));
+                  await giveStep(run.id, step.index, givenAt(run.date, earlier, Date.now()));
+                  await done(t(`${step.name}: δόθηκε ${earlier}`, `${step.name}: given at ${earlier}`));
                 }}
               />
-            </View>
+              <Button label={t('Πίσω', 'Back')} kind="ghost" onPress={() => setEarlier(null)} />
+            </>
+          ) : (
+            <>
+              {!!step.med?.notes && <Text style={[st.notes, { color: c.textSoft }]}>{step.med.notes}</Text>}
+              {!!after && (
+                <View style={[st.next, { backgroundColor: c.accentSoft }]}>
+                  <Text style={{ color: c.accentText, fontWeight: '700' }}>{after}</Text>
+                </View>
+              )}
+
+              <Button
+                label={t('Το έδωσα', 'I gave it')}
+                kind="success"
+                icon="paw"
+                onPress={async () => {
+                  await giveStep(run.id, step.index);
+                  await done(t(`${step.name}: δόθηκε`, `${step.name}: given`));
+                }}
+              />
+              <Button
+                label={t('Το έδωσα νωρίτερα', 'I gave it earlier')}
+                icon="time-outline"
+                onPress={() => setEarlier(earlierStart(step, Date.now()))}
+              />
+
+              {snoozeOpen ? (
+                <View style={s.wrap}>
+                  {SNOOZE_OPTIONS.map(min => (
+                    <Chip
+                      key={min}
+                      label={formatMinutes(min)}
+                      onPress={async () => {
+                        await snoozeStepFor(run.id, step.index, min);
+                        await done(
+                          t(
+                            `Υπενθύμιση στις ${toHHMM(Date.now() + min * MINUTE)}`,
+                            `Reminder at ${toHHMM(Date.now() + min * MINUTE)}`,
+                          ),
+                        );
+                      }}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Button style={{ flex: 1 }} label={t('Αργότερα', 'Later')} onPress={() => setSnoozeOpen(true)} />
+                  <Button
+                    style={{ flex: 1 }}
+                    label={t('Παράλειψη', 'Skip')}
+                    onPress={async () => {
+                      await skipStep(run.id, step.index);
+                      await done(t(`${step.name}: παράλειψη`, `${step.name}: skipped`));
+                    }}
+                  />
+                </View>
+              )}
+              <Button label={t('Κλείσιμο', 'Close')} kind="ghost" onPress={() => setTarget(null)} />
+            </>
           )}
-          <Button label={t('Κλείσιμο', 'Close')} kind="ghost" onPress={() => setTarget(null)} />
         </View>
-      </View>
+      </ScrollView>
     </Layer>
   );
 };
 
 const st = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'center', padding: 20 },
+  overlay: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   box: { borderRadius: 24, padding: 20, gap: 14 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2.5 },
