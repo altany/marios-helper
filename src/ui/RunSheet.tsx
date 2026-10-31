@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
-import { markStep, moveRun, resetRunTime, setRunSkipped, unmarkStep } from '../engine/actions';
+import { moveRun, resetRunTime, setRunSkipped, unmarkStep } from '../engine/actions';
 import { buildRun, RunView, StepView } from '../engine/runs';
 import { t } from '../i18n';
-import { atTime, formatDate, formatMinutes, hhmmToMinutes, MINUTE, minutesToHHMM, nearestAt, toHHMM } from '../lib/time';
+import { formatDate, formatMinutes, hhmmToMinutes, MINUTE, minutesToHHMM, nearestAt, toHHMM } from '../lib/time';
 import { act, giveStep, skipStep, snoozeStepFor } from '../notify/commands';
 import { nextLine } from '../notify/content';
 import { useData } from '../store/store';
 import { Button, Chip, Divider, s, Sheet, useNow } from './components';
-import { SNOOZE_OPTIONS, StepLine } from './dose';
+import { earlierStart, givenAt, SNOOZE_OPTIONS, StepLine } from './dose';
 import { TimePicker } from './pickers';
 import { useColors } from './theme';
 import { toast } from './toast';
@@ -77,9 +77,7 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
   if (mode.kind === 'givenAt') {
     const step = run.steps[mode.index];
     const save = async () => {
-      let at = atTime(run.date, mode.value);
-      if (at > now + 12 * 60 * MINUTE) at -= 24 * 60 * MINUTE; // e.g. picked 23:50 just after midnight
-      await act(d => markStep(d, run.id, mode.index, 'given', at));
+      await giveStep(run.id, mode.index, givenAt(run.date, mode.value, now));
       toast(t(`${step.name}: δόθηκε ${mode.value}`, `${step.name}: given at ${mode.value}`));
       setMode({ kind: 'main' });
     };
@@ -160,13 +158,7 @@ export const RunSheet = ({ runId, onClose }: { runId: string | null; onClose: ()
                   small
                   style={{ flex: 1 }}
                   label={t('Νωρίτερα', 'Earlier')}
-                  onPress={() =>
-                    setMode({
-                      kind: 'givenAt',
-                      index: step.index,
-                      value: toHHMM(Math.min(now, Math.max(step.dueAt, now - 30 * MINUTE))),
-                    })
-                  }
+                  onPress={() => setMode({ kind: 'givenAt', index: step.index, value: earlierStart(step, now) })}
                 />
                 {step.status !== 'missed' && (
                   <Button

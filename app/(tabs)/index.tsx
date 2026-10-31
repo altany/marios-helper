@@ -13,6 +13,7 @@ import {
   formatFromNow,
   formatMinutes,
   formatMinutesShort,
+  fromToday,
   MINUTE,
   relativeDay,
   toHHMM,
@@ -76,8 +77,7 @@ export default function TodayScreen() {
   return (
     <>
       <Screen
-        title={relativeDay(date, today)}
-        subtitle={formatDate(date)}
+        title={fromToday(date, today)}
         right={
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <IconButton icon="stats-chart-outline" label={t('Ιστορικό', 'History')} onPress={() => router.push('/history')} />
@@ -153,9 +153,17 @@ export default function TodayScreen() {
 
         <View style={st.dayNav}>
           <IconButton icon="chevron-back" label={t('Προηγούμενη μέρα', 'Previous day')} onPress={() => setDate(addDays(date, -1))} />
-          <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-            {!isToday && <Chip label={t('Σήμερα', 'Today')} onPress={() => setDate(today)} />}
-            {isToday && <Chip label={t('Αύριο', 'Tomorrow')} onPress={() => setDate(addDays(today, 1))} />}
+          <View style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+            <Text style={[st.dayLabel, { color: c.text }]}>{formatDate(date)}</Text>
+            {!isToday && (
+              <Button
+                small
+                kind="ghost"
+                icon="return-up-back"
+                label={t('Πίσω στο σήμερα', 'Back to today')}
+                onPress={() => setDate(today)}
+              />
+            )}
           </View>
           <IconButton icon="chevron-forward" label={t('Επόμενη μέρα', 'Next day')} onPress={() => setDate(addDays(date, 1))} />
         </View>
@@ -426,6 +434,7 @@ const NextCard = ({ run, step, now, onPress }: { run: RunView; step: StepView; n
 const st = StyleSheet.create({
   avatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5 },
   dayNav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dayLabel: { fontSize: 16, fontWeight: '700' },
   progressText: { fontSize: 16, fontWeight: '700' },
   bravo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   bravoText: { fontSize: 15, fontWeight: '800' },

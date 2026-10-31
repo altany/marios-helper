@@ -4,12 +4,22 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RunView, StepView } from '../engine/runs';
 import { t } from '../i18n';
 import { caps } from '../lib/text';
-import { formatFromNow, formatMinutes, MINUTE, toHHMM } from '../lib/time';
+import { atTime, formatFromNow, formatMinutes, MINUTE, toHHMM } from '../lib/time';
 import { IconName, MedIcon } from './components';
 import { Colors, radius, useColors } from './theme';
 
 /** Choices for "Αργότερα" (later): 5 minutes to 2 hours. */
 export const SNOOZE_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+
+/** Where "given earlier" starts: half an hour ago, but not before it was due. */
+export const earlierStart = (step: StepView, now: number) =>
+  toHHMM(Math.min(now, Math.max(step.dueAt, now - 30 * MINUTE)));
+
+/** The moment of a "given at" time picked for a run's day. */
+export const givenAt = (date: string, hhmm: string, now: number) => {
+  const at = atTime(date, hhmm);
+  return at > now + 12 * 60 * MINUTE ? at - 24 * 60 * MINUTE : at; // e.g. picked 23:50 just after midnight
+};
 
 export const statusInfo = (
   run: RunView,

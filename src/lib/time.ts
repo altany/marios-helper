@@ -109,6 +109,13 @@ export const relativeDay = (key: string, today: string): string => {
   return formatDate(key);
 };
 
+/** Like relativeDay, but further days count from today: "Σε 3 μέρες", "Πριν από 3 μέρες" (In 3 days, 3 days ago). */
+export const fromToday = (key: string, today: string): string => {
+  const diff = daysBetween(today, key);
+  if (Math.abs(diff) <= 1) return relativeDay(key, today);
+  return diff > 0 ? t(`Σε ${diff} μέρες`, `In ${diff} days`) : t(`Πριν από ${-diff} μέρες`, `${-diff} days ago`);
+};
+
 /** "20′", "1 ώρα", "1 ώρα 30′", "2 ώρες" / "20 min", "1 hr", "1 hr 30 min", "2 hrs" */
 export const formatMinutes = (min: number): string => {
   const m = Math.round(min);
