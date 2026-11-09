@@ -53,8 +53,8 @@ import { EventType } from 'react-native-notify-kit/dist/types/Notification.js';
 import { markStep } from '../src/engine/actions';
 import { apptNotifId, physioNotifId, saveAppointment, setPhysioDaily } from '../src/engine/physio';
 import { runId, runsForDay, stepNotifId } from '../src/engine/runs';
-import { atTime } from '../src/lib/time';
-import { CH_DOSE, CH_DOSE_BARK, CH_DOSE_QUIET } from '../src/notify/channels';
+import { atTime, MINUTE } from '../src/lib/time';
+import { CH_DOSE, CH_DOSE_BARK, CH_DOSE_QUIET, CH_WAIT } from '../src/notify/channels';
 import { BRAVO_ID } from '../src/notify/content';
 import { handleEvent } from '../src/notify/events';
 import { readLog } from '../src/notify/log';
@@ -94,6 +94,31 @@ it('schedules the day ahead', async () => {
   expect(notification.android.style.text).toBe('<b>1 σταγόνα σε κάθε μάτι</b><br><i>Μετά: Tearshield σε 20 λεπτά</i>');
   expect(mockNotifs.triggers.has(TEARSHIELD)).toBe(false); // only after Blinkdrops is given
   expect(mockNotifs.triggers.size).toBeGreaterThan(30); // about a week
+});
+
+it('says an hour before that a dose is coming up, quietly, with a timer', async () => {
+  const SOON = `${BLINKDROPS}~soon`;
+  const { notification, trigger } = mockNotifs.triggers.get(SOON)!;
+  expect(trigger.timestamp).toBe(t('08:00'));
+  expect(notification.title).toBe('Σε λίγο: Blinkdrops στις 09:00');
+  expect(notification.android.channelId).toBe(CH_WAIT);
+  expect(notification.android).toMatchObject({ showChronometer: true, chronometerDirection: 'down', timestamp: t('09:00') });
+  expect(notification.android.actions.map((a: { title: string }) => a.title)).toEqual(['Το έδωσα νωρίτερα']);
+  expect(notification.body).toBe('1 σταγόνα σε κάθε μάτι');
+  expect(mockNotifs.triggers.has(`${TEARSHIELD}~soon`)).toBe(false); // the chain has its own countdown
+
+  at('08:00');
+  mockNotifs.fire(SOON);
+  await handleEvent({ type: EventType.DELIVERED, detail: { notification } }, false);
+  expect(mockNotifs.displayed.has(SOON)).toBe(true);
+
+  // Swiped away: it stays away, and the reminder still comes at 09:00.
+  at('08:10');
+  mockNotifs.displayed.delete(SOON);
+  await handleEvent({ type: EventType.DISMISSED, detail: { notification } }, false);
+  await syncNotifications();
+  expect(mockNotifs.displayed.has(SOON)).toBe(false);
+  expect(mockNotifs.triggers.get(BLINKDROPS)?.trigger.timestamp).toBe(t('09:00'));
 });
 
 it('repeats an unanswered reminder', async () => {
@@ -174,6 +199,26 @@ it('moves one reminder to another time only that day', async () => {
   expect(mockNotifs.triggers.get(stepNotifId(tomorrow, 0))?.trigger.timestamp).toBe(atTime('2026-10-13', '21:00'));
 });
 
+it('gives a dose early from the heads-up', async () => {
+  const NOON = stepNotifId(runId('eyes-noon', DAY, '15:00'), 0);
+  at('14:00');
+  mockNotifs.fire(`${NOON}~soon`);
+  at('14:30');
+  await press(`${NOON}~soon`, 'give');
+  expect((await getData()).runs[runId('eyes-noon', DAY, '15:00')].marks[0].at).toBe(t('14:30'));
+  expect(mockNotifs.displayed.has(`${NOON}~soon`)).toBe(false);
+  expect(mockNotifs.triggers.has(NOON)).toBe(false); // no reminder at 15:00
+});
+
+it('shows the heads-up at once for a dose moved to less than an hour away', async () => {
+  const evening = runId('eyes-am-pm', DAY, '21:00');
+  at('21:40');
+  await syncNotifications();
+  const soon = mockNotifs.displayed.get(`${stepNotifId(evening, 0)}~soon`)?.notification;
+  expect(soon?.title).toBe('Σε λίγο: Blinkdrops στις 22:15'); // moved there in the test above
+  expect(soon?.android.timeoutAfter).toBe(35 * MINUTE);
+});
+
 it('says well done after the last dose of the day', async () => {
   at('22:20');
   const open = runsForDay(await getData(), DAY, Date.now())
@@ -197,8 +242,8 @@ it('uses the usual sound when barking is off', async () => {
     d.settings.bark = false;
   });
   await syncNotifications();
-  const channels = new Set(Array.from(mockNotifs.triggers.values()).map(n => n.notification.android.channelId));
-  expect(channels).toEqual(new Set([CH_DOSE]));
+  const doses = Array.from(mockNotifs.triggers.values()).filter(n => n.notification.data.kind === 'dose');
+  expect(new Set(doses.map(n => n.notification.android.channelId))).toEqual(new Set([CH_DOSE]));
 });
 
 it('speaks English when the language is English', async () => {

@@ -10,6 +10,7 @@ import {
   doseNotification,
   physioNotification,
   signature,
+  soonNotification,
 } from './content';
 import notifee, { AlarmType, AndroidNotificationSetting, TriggerType } from './driver';
 import { clock, log } from './log';
@@ -19,11 +20,12 @@ import { clock, log } from './log';
 //  - due medicines stay visible until answered,
 //  - the same for the daily physio reminder (until the end of the day), and a
 //    reminder before each physio visit,
+//  - a quiet heads-up an hour before each dose, unless it was swiped away,
 //  - everything else of ours is removed.
 // It is safe to call any time; it only changes what differs.
 
 const isOurs = (id: string | undefined): id is string =>
-  !!id && (parseNotifId(id.replace(/~wait$/, '')) != null || isPhysioNotif(id));
+  !!id && (parseNotifId(id.replace(/~(wait|soon)$/, '')) != null || isPhysioNotif(id));
 
 let running: Promise<void> | null = null;
 let again = false;
@@ -86,6 +88,9 @@ const syncOnce = async (why: string) => {
     if (alert.day) want(physioNotification(data, alert.day, { postAt: alert.at }), alert.at);
     else if (alert.appt) want(appointmentNotification(alert.appt, alert.at), alert.at);
   }
+  for (const s of plan.soon) {
+    if (s.at > now) want(soonNotification(s.run, s.step, s.at), s.at);
+  }
 
   for (const existing of await notifee.getTriggerNotifications()) {
     const id = existing.notification.id;
@@ -122,9 +127,11 @@ const syncOnce = async (why: string) => {
   );
 
   const physioDue = plan.physio.due?.visible ? plan.physio.due.day : null;
+  const soonNow = plan.soon.filter(s => s.at <= now && s.visible);
   const keep = new Set([
     ...plan.due.filter(d => d.visible).map(d => d.step.notifId),
     ...plan.countdowns.map(c => c.notifId),
+    ...soonNow.map(s => s.notifId),
     ...(physioDue ? [physioDue.notifId] : []),
     ...plan.physio.keep,
   ]);
@@ -155,6 +162,13 @@ const syncOnce = async (why: string) => {
     if (shown.get(c.notifId)?.sig === notification.data.sig) continue;
     void log(`show countdown ${c.notifId}`);
     await notifee.displayNotification(notification);
+  }
+
+  // A dose planned less than an hour ahead (or moved) gets its heads-up now.
+  for (const s of soonNow) {
+    if (shown.get(s.notifId)?.dueAt === String(s.step.dueAt)) continue;
+    void log(`show coming up ${s.notifId}`);
+    await notifee.displayNotification(soonNotification(s.run, s.step, now));
   }
 };
 

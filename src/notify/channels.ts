@@ -63,7 +63,7 @@ export const createChannels = async () => {
   await notifee.createChannel({
     id: CH_WAIT,
     name: t('Αντίστροφη μέτρηση', 'Countdown'),
-    description: t('Δείχνει πόσο μένει μέχρι το επόμενο φάρμακο μιας σειράς.', 'Shows how long until the next medicine in a chain.'),
+    description: t('Δείχνει πόσο μένει μέχρι το επόμενο φάρμακο.', 'Shows how long until the next medicine.'),
     importance: AndroidImportance.LOW,
     visibility: AndroidVisibility.PUBLIC,
     vibration: false,

@@ -140,6 +140,43 @@ export const countdownNotification = (
   },
 });
 
+/**
+ * Quiet notification an hour before a dose, with a timer counting down to it and
+ * "Το έδωσα νωρίτερα" in case it is given early. It goes away when the dose is due.
+ */
+export const soonNotification = (
+  run: RunView,
+  step: StepView,
+  postAt: number,
+): Notification & { id: string; data: Record<string, string> } => {
+  const name = esc(step.name);
+  const text = step.med?.dose ? esc(step.med.dose) : undefined;
+  return {
+    id: `${step.notifId}~soon`,
+    title: t(`Σε λίγο: ${name} στις ${toHHMM(step.dueAt)}`, `Coming up: ${name} at ${toHHMM(step.dueAt)}`),
+    body: text,
+    subtitle: run.routineName ? esc(run.routineName) : undefined,
+    // `dueAt` tells sync whether the one in the drawer is still right ("sig" is used for alarms).
+    data: { runId: run.id, index: String(step.index), kind: 'soon', dueAt: String(step.dueAt) },
+    android: {
+      channelId: CH_WAIT,
+      smallIcon: SMALL_ICON,
+      largeIcon: LARGE_ICON,
+      circularLargeIcon: true,
+      color: step.med?.color ?? ACCENT,
+      autoCancel: false,
+      onlyAlertOnce: true,
+      showChronometer: true,
+      chronometerDirection: 'down',
+      timestamp: step.dueAt,
+      timeoutAfter: Math.max(1000, step.dueAt - postAt),
+      style: text ? { type: AndroidStyle.BIGTEXT, text } : undefined,
+      pressAction: { id: 'default', launchActivity: 'default' },
+      actions: [{ title: t('Το έδωσα νωρίτερα', 'I gave it earlier'), pressAction: { id: ACTION_GIVE } }],
+    },
+  };
+};
+
 /** The daily physio reminder, while the exercises aren't done. It goes away at the end of the day. */
 export const physioNotification = (
   data: AppData,
