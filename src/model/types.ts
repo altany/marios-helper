@@ -100,6 +100,8 @@ export interface Settings {
   sticky: boolean;
   /** Quiet countdown notification while waiting for the next medicine of a chain. */
   countdown: boolean;
+  /** Quiet notification an hour before each dose, to give it early if needed. */
+  soon: boolean;
   /** Sound keeps playing until the notification is looked at. */
   insistent: boolean;
   /** The dose notification barks instead of the phone's usual sound. */

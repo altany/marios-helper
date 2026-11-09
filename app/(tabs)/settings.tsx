@@ -198,6 +198,15 @@ export default function SettingsScreen() {
           onChange={countdown => set({ countdown })}
         />
         <SwitchRow
+          label={t('Μία ώρα πριν', 'An hour before')}
+          hint={t(
+            'Αθόρυβη ειδοποίηση μία ώρα πριν από κάθε δόση, με αντίστροφη μέτρηση και «Το έδωσα», αν χρειαστεί να το δώσεις νωρίτερα.',
+            'A quiet notification an hour before each dose, with a countdown and "I gave it", in case you give it early.',
+          )}
+          value={data.settings.soon}
+          onChange={soon => set({ soon })}
+        />
+        <SwitchRow
           label={t('Γάβγισμα', 'Bark')}
           hint={t(
             'Η ειδοποίηση για κάθε δόση γαβγίζει αντί για τον συνηθισμένο ήχο του κινητού.',
