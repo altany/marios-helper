@@ -103,7 +103,8 @@ it('says an hour before that a dose is coming up, quietly, with a timer', async 
   expect(notification.title).toBe('Σε λίγο: Blinkdrops στις 09:00');
   expect(notification.android.channelId).toBe(CH_WAIT);
   expect(notification.android).toMatchObject({ showChronometer: true, chronometerDirection: 'down', timestamp: t('09:00') });
-  expect(notification.android.actions.map((a: { title: string }) => a.title)).toEqual(['Το έδωσα']);
+  expect(notification.android.actions.map((a: { title: string }) => a.title)).toEqual(['Το έδωσα νωρίτερα']);
+  expect(notification.body).toBe('1 σταγόνα σε κάθε μάτι');
   expect(mockNotifs.triggers.has(`${TEARSHIELD}~soon`)).toBe(false); // the chain has its own countdown
 
   at('08:00');

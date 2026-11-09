@@ -142,7 +142,7 @@ export const countdownNotification = (
 
 /**
  * Quiet notification an hour before a dose, with a timer counting down to it and
- * "Το έδωσα" in case it is given early. It goes away when the dose is due.
+ * "Το έδωσα νωρίτερα" in case it is given early. It goes away when the dose is due.
  */
 export const soonNotification = (
   run: RunView,
@@ -150,12 +150,7 @@ export const soonNotification = (
   postAt: number,
 ): Notification & { id: string; data: Record<string, string> } => {
   const name = esc(step.name);
-  const text = [
-    step.med?.dose ? `<b>${esc(step.med.dose)}</b>` : '',
-    t('Αν το δώσεις νωρίτερα, πάτα Το έδωσα.', 'If you give it early, tap I gave it.'),
-  ]
-    .filter(Boolean)
-    .join('<br>');
+  const text = step.med?.dose ? esc(step.med.dose) : undefined;
   return {
     id: `${step.notifId}~soon`,
     title: t(`Σε λίγο: ${name} στις ${toHHMM(step.dueAt)}`, `Coming up: ${name} at ${toHHMM(step.dueAt)}`),
@@ -175,9 +170,9 @@ export const soonNotification = (
       chronometerDirection: 'down',
       timestamp: step.dueAt,
       timeoutAfter: Math.max(1000, step.dueAt - postAt),
-      style: { type: AndroidStyle.BIGTEXT, text },
+      style: text ? { type: AndroidStyle.BIGTEXT, text } : undefined,
       pressAction: { id: 'default', launchActivity: 'default' },
-      actions: [{ title: t('Το έδωσα', 'I gave it'), pressAction: { id: ACTION_GIVE } }],
+      actions: [{ title: t('Το έδωσα νωρίτερα', 'I gave it earlier'), pressAction: { id: ACTION_GIVE } }],
     },
   };
 };
