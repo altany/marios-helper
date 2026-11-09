@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   missAfterMin: 720,
   sticky: true,
   countdown: true,
+  soon: true,
   insistent: false,
   bark: true,
   language: 'auto',

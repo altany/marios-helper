@@ -13,6 +13,9 @@ export const HORIZON_DAYS = 7;
 /** An unanswered reminder rings again at most this many times, then stays quietly in the drawer. */
 export const MAX_REPEATS = 6;
 
+/** The quiet "coming up" notification shows this long before a dose. */
+export const SOON_MIN = 60;
+
 export interface PlannedAlert {
   notifId: string;
   run: RunView;
@@ -39,22 +42,40 @@ export interface Countdown {
   after: StepView;
 }
 
+/** A quiet heads-up an hour before a dose, so it can be given early. */
+export interface Soon {
+  notifId: string;
+  run: RunView;
+  step: StepView;
+  /** When it shows. */
+  at: number;
+  /** False once swiped away. */
+  visible: boolean;
+}
+
 export interface NotificationPlan {
   alerts: PlannedAlert[];
   due: DueNow[];
   countdowns: Countdown[];
+  soon: Soon[];
   physio: PhysioPlan;
 }
 
 export const planNotifications = (data: AppData, now: number): NotificationPlan => {
-  const { repeatMin, missAfterMin, countdown, sticky } = data.settings;
+  const { repeatMin, missAfterMin, countdown, soon, sticky } = data.settings;
   const repeat = repeatMin * MINUTE;
   const missAfter = missAfterMin * MINUTE;
   const limit = now + HORIZON_DAYS * DAY;
   const today = dateKey(now);
   const back = Math.ceil(missAfterMin / (24 * 60)) + 1;
 
-  const plan: NotificationPlan = { alerts: [], due: [], countdowns: [], physio: planPhysio(data, now, HORIZON_DAYS) };
+  const plan: NotificationPlan = {
+    alerts: [],
+    due: [],
+    countdowns: [],
+    soon: [],
+    physio: planPhysio(data, now, HORIZON_DAYS),
+  };
   if (data.settings.paused) return plan;
 
   for (const run of listRuns(data, addDays(today, -back), addDays(today, HORIZON_DAYS), now)) {
@@ -64,6 +85,13 @@ export const planNotifications = (data: AppData, now: number): NotificationPlan 
         const prev = run.steps[step.index - 1];
         if (countdown && prev?.status === 'given' && !step.snoozed) {
           plan.countdowns.push({ notifId: `${step.notifId}~wait`, run, step, after: prev });
+        }
+        // Only before a dose starts: the medicines after it in a chain have the countdown.
+        if (soon && step.index === 0 && !step.snoozed && step.dueAt - now >= MINUTE) {
+          const notifId = `${step.notifId}~soon`;
+          const at = step.dueAt - SOON_MIN * MINUTE;
+          const dismissedAt = data.dismissed[notifId];
+          plan.soon.push({ notifId, run, step, at, visible: dismissedAt == null || dismissedAt < at });
         }
       } else if (step.status === 'due') {
         let lastAlertAt = step.dueAt;

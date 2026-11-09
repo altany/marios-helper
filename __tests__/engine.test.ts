@@ -351,6 +351,22 @@ describe('notification plan', () => {
     expect(plan.countdowns.map(c => c.notifId)).toEqual([`${stepNotifId(EYES_AM, 1)}~wait`]);
   });
 
+  it('plans a quiet heads-up an hour before each dose', () => {
+    const data = setup();
+    const soon = planNotifications(data, t('07:00')).soon.find(s => s.run.id === EYES_AM)!;
+    expect(soon).toMatchObject({ notifId: `${stepNotifId(EYES_AM, 0)}~soon`, at: t('08:00'), visible: true });
+    // Not for the medicines later in a chain: they have the countdown.
+    expect(planNotifications(data, t('07:00')).soon.some(s => s.step.index > 0)).toBe(false);
+    // Swiped away: it stays away.
+    data.dismissed[soon.notifId] = t('08:05');
+    expect(planNotifications(data, t('08:10')).soon.find(s => s.run.id === EYES_AM)?.visible).toBe(false);
+    // Given early: nothing left to announce.
+    markStep(data, EYES_AM, 0, 'given', t('08:20'));
+    expect(planNotifications(data, t('08:21')).soon.some(s => s.run.id === EYES_AM)).toBe(false);
+    data.settings.soon = false;
+    expect(planNotifications(data, t('07:00')).soon).toEqual([]);
+  });
+
   it('repeats an unanswered alert', () => {
     const data = setup();
     const plan = planNotifications(data, t('09:25'));

@@ -128,6 +128,13 @@ export const handleEvent = async (event: Event, foreground: boolean) => {
     }
     case EventType.DISMISSED: {
       if (!notifId || notifId.endsWith('~wait')) return;
+      if (notifId.endsWith('~soon')) {
+        // The heads-up was seen: it doesn't come back. The reminder itself still comes on time.
+        await update(d => {
+          d.dismissed[notifId] = Date.now();
+        });
+        return;
+      }
       const data = await getData();
       if (data.settings.sticky) {
         // Swiped away without an answer: bring it back, without sound.
